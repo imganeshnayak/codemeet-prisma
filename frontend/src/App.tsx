@@ -1009,7 +1009,7 @@ function ArenaScreen({
         return
       }
       const base = arenaView === "leaderboard" ? 928 : 640
-      const availableHeight = window.innerHeight - 96
+      const availableHeight = window.innerHeight - 88
       setCanvasScale(Math.min(stage.clientWidth / 390, availableHeight / base))
     }
     compute()

@@ -2365,10 +2365,6 @@
   .pixel-art-stage-leaderboard {
     height: 854px;
   }
-
-  .pixel-art-canvas {
-    transform: translateX(-50%) scale(min(1, calc(100vw / 390)));
-  }
 }
 
 @media (max-width: 359px) {
@@ -2405,10 +2401,6 @@
   .pixel-art-stage-map {
     height: calc(100dvh - 88px);
     min-height: 0;
-  }
-
-  .pixel-art-canvas-map {
-    transform: translateX(-50%) scale(min(1, calc(100vw / 390)));
   }
 }
 
