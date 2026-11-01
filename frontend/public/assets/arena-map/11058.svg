@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="111" height="46" viewBox="0 0 111 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Roof outline">
+<path d="M0 40L26 0L89 1L111 34L107 41L35 33L7 46L0 40Z" fill="#522A21"/>
+<mask id="stroke0_0_285" fill="white">
+<path d="M0 40L26 0L89 1L111 34L107 41L35 33L7 46L0 40Z"/>
+</mask>
+<path d="M0 40L26 0L89 1L111 34L107 41L35 33L7 46L0 40Z" stroke-width="4" stroke="#30321D" mask="url(#stroke0_0_285)"/>
+</g>
+</svg>

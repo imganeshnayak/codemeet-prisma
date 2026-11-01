@@ -1,0 +1,17 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="59" height="56" viewBox="0 0 59 56" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="Trail sign">
+<path id="Post" d="M5.5 12.5H10.5V55.5H5.5V12.5Z" fill="#87512A" stroke="#474627"/>
+<path id="Post_2" d="M48.5 10.5H53.5V55.5H48.5V10.5Z" fill="#87512A" stroke="#474627"/>
+<path id="Signboard" d="M2.5 10.5H56.5V40.5H2.5V10.5Z" fill="#EFCB8C" stroke-width="3" stroke="#6C4B24"/>
+<g id="Seedling emblem">
+<use xlink:href="#stroke0_0_26" fill="#4C9E26"/>
+<mask id="stroke1_0_26" fill="white">
+<use xlink:href="#stroke0_0_26"/>
+</mask>
+<path d="M29 35.1916V25.1916C20 28.1916 17 21.1916 17 16.1916C25 15.1916 30 18.1916 30 23.1916C31 16.1916 38 15.1916 42 17.1916C42 24.1916 38 28.1916 32 26.1916V35.1916H29Z" stroke-width="2" stroke="#366027" mask="url(#stroke1_0_26)"/>
+</g>
+</g>
+<defs>
+<path id="stroke0_0_26" d="M29 35.1916V25.1916C20 28.1916 17 21.1916 17 16.1916C25 15.1916 30 18.1916 30 23.1916C31 16.1916 38 15.1916 42 17.1916C42 24.1916 38 28.1916 32 26.1916V35.1916H29Z"/>
+</defs>
+</svg>

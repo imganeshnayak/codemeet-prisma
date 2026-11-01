@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="lens">
+<path id="Vector" d="M17 33C25.8366 33 33 25.8366 33 17C33 8.16344 25.8366 1 17 1C8.16344 1 1 8.16344 1 17C1 25.8366 8.16344 33 17 33Z" fill="#7D409F" stroke-width="2" stroke="#211526"/>
+<path id="Vector_2" d="M16 30C24.0081 30 30.5 23.5081 30.5 15.5C30.5 7.49187 24.0081 1 16 1C7.99187 1 1.5 7.49187 1.5 15.5C1.5 23.5081 7.99187 30 16 30Z" fill="white" stroke-width="1.7" stroke="#211526"/>
+<path id="Vector_3" d="M16 26C21.799 26 26.5 21.299 26.5 15.5C26.5 9.70101 21.799 5 16 5C10.201 5 5.5 9.70101 5.5 15.5C5.5 21.299 10.201 26 16 26Z" fill="#45245E" stroke-width="1.7" stroke="#211526"/>
+<path id="Vector_4" d="M9 18C12.3333 21.3333 17 21 23 17C22.3333 21.6667 20 24 16 24C12.6667 24 10.3333 22 9 18Z" fill="#69408B"/>
+<path id="Vector_5" d="M9.5 13.5C10.1667 10.5 12 8.83333 15 8.5" stroke-width="3" stroke-linecap="round" stroke="white"/>
+<path id="Vector_6" d="M20.5 12.5C21.3284 12.5 22 11.8284 22 11C22 10.1716 21.3284 9.5 20.5 9.5C19.6716 9.5 19 10.1716 19 11C19 11.8284 19.6716 12.5 20.5 12.5Z" fill="white"/>
+</g>
+</svg>

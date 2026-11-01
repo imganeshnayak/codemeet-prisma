@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="74" height="75" viewBox="0 0 74 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Shutter border">
+<path d="M74 37.5C74 58.2107 57.4345 75 37 75C16.5655 75 0 58.2107 0 37.5C0 16.7893 16.5655 0 37 0C57.4345 0 74 16.7893 74 37.5Z" fill="white"/>
+<mask id="stroke0_0_82" fill="white">
+<path d="M74 37.5C74 58.2107 57.4345 75 37 75C16.5655 75 0 58.2107 0 37.5C0 16.7893 16.5655 0 37 0C57.4345 0 74 16.7893 74 37.5Z"/>
+</mask>
+<path d="M74 37.5C74 58.2107 57.4345 75 37 75C16.5655 75 0 58.2107 0 37.5C0 16.7893 16.5655 0 37 0C57.4345 0 74 16.7893 74 37.5Z" stroke="#8D7BA5" mask="url(#stroke0_0_82)"/>
+</g>
+</svg>

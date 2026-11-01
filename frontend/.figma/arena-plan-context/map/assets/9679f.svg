@@ -1,0 +1,30 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="77" height="90" viewBox="0 0 77 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Forest market stall">
+<path id="Stall shadow" d="M1 78L65 68L77 78L67 87L11 86L1 78Z" fill="#428D23"/>
+<g id="Stall frame">
+<path d="M8 22H13V76H64V20H69V83L8 80V22Z" fill="#9B6A31"/>
+<mask id="stroke0_0_273" fill="white">
+<path d="M8 22H13V76H64V20H69V83L8 80V22Z"/>
+</mask>
+<path d="M8 22H13V76H64V20H69V83L8 80V22Z" stroke-width="4" stroke="#334A23" mask="url(#stroke0_0_273)"/>
+</g>
+<g id="Counter">
+<path d="M13 58L64 61V76L13 71V58Z" fill="#D4A55E"/>
+<mask id="stroke1_0_273" fill="white">
+<path d="M13 58L64 61V76L13 71V58Z"/>
+</mask>
+<path d="M13 58L64 61V76L13 71V58Z" stroke-width="4" stroke="#61471F" mask="url(#stroke1_0_273)"/>
+</g>
+<path id="Counter boards" d="M24 61H26V73H24V61ZM39 62H41V74H39V62ZM53 63H55V75H53V63Z" fill="#AC7A3C"/>
+<g id="Awning outline">
+<path d="M2 32L19 14L76 21L61 39H3L2 32Z" fill="#FFF0CF"/>
+<mask id="stroke2_0_273" fill="white">
+<path d="M2 32L19 14L76 21L61 39H3L2 32Z"/>
+</mask>
+<path d="M2 32L19 14L76 21L61 39H3L2 32Z" stroke-width="4" stroke="#64402D" mask="url(#stroke2_0_273)"/>
+</g>
+<path id="Awning stripes" d="M4 31L20 15L29 16L13 34V40L4 39V31ZM24 34L40 18L48 19L33 37V42L24 41V34ZM45 36L60 20L69 21L54 39V44L45 43V36Z" fill="#EE4941"/>
+<path id="Goods" d="M18 52L21 49H27L30 53L29 58L19 57L18 52ZM35 54L38 51L43 52L45 57L44 59L35 58V54Z" fill="#BFE445"/>
+<path id="Market jar" d="M49.5 49.5H56.5V60.5H49.5V49.5Z" fill="#4FB3A2" stroke="#3C6947"/>
+</g>
+</svg>

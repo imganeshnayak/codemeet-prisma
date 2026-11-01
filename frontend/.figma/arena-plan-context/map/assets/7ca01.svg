@@ -1,0 +1,36 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="63" height="57" viewBox="0 0 63 57" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="Treasure chest" clip-path="url(#clip0_0_31)">
+<path id="Chest shadow" d="M0 49L43 44L65 50L50 58L5 55L0 49Z" fill="#448B22"/>
+<g id="Chest body">
+<path d="M5 23L44 18L58 26L56 48L43 54L5 47V23Z" fill="#9B460C"/>
+<mask id="stroke0_0_31" fill="white">
+<path d="M5 23L44 18L58 26L56 48L43 54L5 47V23Z"/>
+</mask>
+<path d="M5 23L44 18L58 26L56 48L43 54L5 47V23Z" stroke-width="4" stroke="#4F310E" mask="url(#stroke0_0_31)"/>
+</g>
+<g id="Treasure lid">
+<path d="M5 26V16L11 8L23 5L45 8L55 14L59 25L44 34L5 26Z" fill="#C96E0C"/>
+<mask id="stroke1_0_31" fill="white">
+<path d="M5 26V16L11 8L23 5L45 8L55 14L59 25L44 34L5 26Z"/>
+</mask>
+<path d="M5 26V16L11 8L23 5L45 8L55 14L59 25L44 34L5 26Z" stroke-width="4" stroke="#65330E" mask="url(#stroke1_0_31)"/>
+</g>
+<path id="Chest light" d="M9 17L14 11L24 8L43 11L49 16L52 24L43 29L9 23V17ZM9 31L41 38V48L9 42V31Z" fill="#F4A311"/>
+<g id="Golden straps">
+<use xlink:href="#stroke2_0_31" fill="#FFE369"/>
+<mask id="stroke3_0_31" fill="white">
+<use xlink:href="#stroke2_0_31"/>
+</mask>
+<path d="M15 9L21 7L17 16V26L12 25V17L15 9ZM36 9L42 10L37 19V30L31 29V18L36 9ZM11 28L17 29V45L11 44V28ZM32 33L38 34V50L32 49V33ZM6 43L44 50L55 44V49L43 55L6 48V43Z" stroke-width="2" stroke="#995615" mask="url(#stroke3_0_31)"/>
+</g>
+<path id="Chest rim" d="M5 24L44 31L59 24V28L44 36L5 29V24Z" fill="#FFE36E"/>
+<path id="Lock plate" d="M24 30H32V40H24V30Z" fill="#FFF28D" stroke-width="2" stroke="#8E4A0B"/>
+<rect id="Keyhole" x="27" y="33" width="3" height="5" fill="#58340F"/>
+</g>
+<defs>
+<clipPath id="clip0_0_31">
+<rect width="63" height="57" fill="white"/>
+</clipPath>
+<path id="stroke2_0_31" d="M15 9L21 7L17 16V26L12 25V17L15 9ZM36 9L42 10L37 19V30L31 29V18L36 9ZM11 28L17 29V45L11 44V28ZM32 33L38 34V50L32 49V33ZM6 43L44 50L55 44V49L43 55L6 48V43Z"/>
+</defs>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "description": "View and explore the attached content in one convenient place.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

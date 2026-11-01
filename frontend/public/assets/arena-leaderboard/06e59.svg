@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="28" height="21" viewBox="0 0 28 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Champion crown">
+<path d="M0 5L6 11L13 1C13.6667 -0.333333 14.3333 -0.333333 15 1L22 11L28 5L25 19C17.6667 21.6667 10.3333 21.6667 3 19L0 5Z" fill="#FFC92B"/>
+<mask id="stroke0_0_260" fill="white">
+<path d="M0 5L6 11L13 1C13.6667 -0.333333 14.3333 -0.333333 15 1L22 11L28 5L25 19C17.6667 21.6667 10.3333 21.6667 3 19L0 5Z"/>
+</mask>
+<path d="M0 5L6 11L13 1C13.6667 -0.333333 14.3333 -0.333333 15 1L22 11L28 5L25 19C17.6667 21.6667 10.3333 21.6667 3 19L0 5Z" stroke-width="3.2" stroke-linejoin="round" stroke="#7A4512" mask="url(#stroke0_0_260)"/>
+</g>
+</svg>

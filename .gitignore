@@ -1,0 +1,34 @@
+# OS junk
+Thumbs.db
+Thumbs.db:encryptable
+*.stackdump
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs & temp
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Misc tooling artifacts
+.cache/
+*.tsbuildinfo

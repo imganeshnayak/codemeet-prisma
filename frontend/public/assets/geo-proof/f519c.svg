@@ -1,0 +1,16 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="58.25" height="96" viewBox="0 0 58.25 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="right-plant">
+<path id="Vector" d="M6 87C1 72 0 54 0 36C0 19 3 5 8 0C15 2 20 16 19 33C18 55 12 74 6 87Z" fill="#24D99B"/>
+<path id="Vector_2" d="M7 93C7 77 12 56 23 42C30 33 38 25 43 27C49 30 43 44 36 55C26 70 15 82 7 93Z" fill="#18C88C"/>
+<path id="Vector_3" d="M12 96C19 79 31 66 44 59C50 56 56 56 58 59C59 64 51 72 43 78C32 86 22 91 12 96Z" fill="#36DFA5"/>
+<path id="Vector_4" d="M0 61C8 65 15 77 16 96H0V61Z" fill="#16BE85"/>
+<path id="Vector_5" d="M18 96C28 87 41 82 52 84C57 85 59 88 58 91C56 94 53 95 49 96H18Z" fill="#31D79C"/>
+<g id="right-stems">
+<path id="Vector_6" d="M5 95C7 73 9 43 8 13" stroke-width="1.15" stroke-linecap="round" stroke="#075B42"/>
+<path id="Vector_7" d="M6 95C13 75 25 54 39 33" stroke-width="1.15" stroke-linecap="round" stroke="#075B42"/>
+<path id="Vector_8" d="M10 95C22 81 37 69 51 62" stroke-width="1.15" stroke-linecap="round" stroke="#075B42"/>
+<path id="Vector_9" d="M13 95C11 82 7 74 2 68" stroke-width="1.15" stroke-linecap="round" stroke="#075B42"/>
+<path id="Vector_10" d="M19 95C30 90 42 88 52 89" stroke-width="1.15" stroke-linecap="round" stroke="#075B42"/>
+</g>
+</g>
+</svg>

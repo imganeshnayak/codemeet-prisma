@@ -1,0 +1,7 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="River boulder">
+<path id="Stone outline" d="M0 10H3V4H7V1H14V4H18V11H20V15L16 18H5L0 15V10Z" fill="#404F42"/>
+<path id="Stone face" d="M3 10L6 5L13 3L16 6L17 13L12 16L5 15L3 10Z" fill="#757F70"/>
+<path id="Stone light" d="M6 5L13 3L16 6H12V9L7 11H4L6 5Z" fill="#BBC0A4"/>
+</g>
+</svg>

@@ -1,0 +1,17 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="28" height="33" viewBox="0 0 28 33" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="Title accent" clip-path="url(#clip0_0_22)">
+<g id="Celebration rays">
+<use xlink:href="#stroke0_0_22" fill="#C4F42D"/>
+<mask id="stroke1_0_22" fill="white">
+<use xlink:href="#stroke0_0_22"/>
+</mask>
+<path d="M16.4298 23.6021C12.3181 19.066 7.17853 4.32381 10.2623 2.05577C14.374 -1.34628 17.4577 17.932 16.4298 23.6021ZM22.5973 21.3341C21.5694 14.53 24.6531 -1.34628 28.7648 2.05577C31.8486 5.45783 25.681 19.066 22.5973 21.3341ZM10.2623 30.4062C5.12269 31.5403 -1.04482 27.0042 1.01102 23.6021C3.06686 21.3341 10.2623 27.0042 10.2623 30.4062Z" stroke-width="2.4" stroke="#100C18" mask="url(#stroke1_0_22)"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_22">
+<rect width="28" height="33" fill="white"/>
+</clipPath>
+<path id="stroke0_0_22" d="M16.4298 23.6021C12.3181 19.066 7.17853 4.32381 10.2623 2.05577C14.374 -1.34628 17.4577 17.932 16.4298 23.6021ZM22.5973 21.3341C21.5694 14.53 24.6531 -1.34628 28.7648 2.05577C31.8486 5.45783 25.681 19.066 22.5973 21.3341ZM10.2623 30.4062C5.12269 31.5403 -1.04482 27.0042 1.01102 23.6021C3.06686 21.3341 10.2623 27.0042 10.2623 30.4062Z"/>
+</defs>
+</svg>

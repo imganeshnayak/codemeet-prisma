@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="87" height="104" viewBox="0 0 87 104" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Podium block">
+<path d="M7 0H80V4H87V98H81V104H6V99H0V5H7V0Z" fill="#FFD72C"/>
+<mask id="stroke0_0_101" fill="white">
+<path d="M7 0H80V4H87V98H81V104H6V99H0V5H7V0Z"/>
+</mask>
+<path d="M7 0H80V4H87V98H81V104H6V99H0V5H7V0Z" stroke-width="4" stroke="#9E590D" mask="url(#stroke0_0_101)"/>
+</g>
+</svg>

@@ -1,0 +1,16 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="47" height="46" viewBox="0 0 47 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Level badge">
+<path d="M47 23C47 35.7025 36.4787 46 23.5 46C10.5213 46 0 35.7025 0 23C0 10.2975 10.5213 0 23.5 0C36.4787 0 47 10.2975 47 23Z" fill="url(#paint0_linear_0_40)"/>
+<mask id="stroke0_0_40" fill="white">
+<path d="M47 23C47 35.7025 36.4787 46 23.5 46C10.5213 46 0 35.7025 0 23C0 10.2975 10.5213 0 23.5 0C36.4787 0 47 10.2975 47 23Z"/>
+</mask>
+<path d="M47 23C47 35.7025 36.4787 46 23.5 46C10.5213 46 0 35.7025 0 23C0 10.2975 10.5213 0 23.5 0C36.4787 0 47 10.2975 47 23Z" stroke-width="4" stroke="#2A750B" mask="url(#stroke0_0_40)"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_40" x1="0" y1="0" x2="0" y2="46" gradientUnits="userSpaceOnUse">
+<stop stop-color="#8EDF29"/>
+<stop offset="0.5" stop-color="#51B31A"/>
+<stop offset="1" stop-color="#2E890F"/>
+</linearGradient>
+</defs>
+</svg>

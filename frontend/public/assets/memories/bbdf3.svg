@@ -1,0 +1,17 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="Gallery accent" clip-path="url(#clip0_0_14)">
+<g id="Celebration rays">
+<use xlink:href="#stroke0_0_14" fill="#9500EF"/>
+<mask id="stroke1_0_14" fill="white">
+<use xlink:href="#stroke0_0_14"/>
+</mask>
+<path d="M19.1582 27.3984C14.3376 22.0802 8.31185 4.79622 11.9273 2.13714C16.7479 -1.85148 20.3633 20.7507 19.1582 27.3984ZM26.389 24.7393C25.1839 16.7621 28.7993 -1.85148 33.6199 2.13714C37.2353 6.12576 30.0045 22.0802 26.389 24.7393ZM11.9273 35.3756C5.90156 36.7052 -1.32931 31.387 1.08098 27.3984C3.49127 24.7393 11.9273 31.387 11.9273 35.3756Z" stroke-width="2.4" stroke="#100C18" mask="url(#stroke1_0_14)"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_14">
+<rect width="34" height="34" fill="white"/>
+</clipPath>
+<path id="stroke0_0_14" d="M19.1582 27.3984C14.3376 22.0802 8.31185 4.79622 11.9273 2.13714C16.7479 -1.85148 20.3633 20.7507 19.1582 27.3984ZM26.389 24.7393C25.1839 16.7621 28.7993 -1.85148 33.6199 2.13714C37.2353 6.12576 30.0045 22.0802 26.389 24.7393ZM11.9273 35.3756C5.90156 36.7052 -1.32931 31.387 1.08098 27.3984C3.49127 24.7393 11.9273 31.387 11.9273 35.3756Z"/>
+</defs>
+</svg>

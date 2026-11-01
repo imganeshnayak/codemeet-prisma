@@ -1,0 +1,23 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="47" height="48" viewBox="0 0 47 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Locked level">
+<ellipse id="Marker shadow" opacity="0.6" cx="23" cy="27" rx="23" ry="21" fill="#45415D"/>
+<g id="Locked badge">
+<path d="M46 22C46 34.1503 35.7025 44 23 44C10.2975 44 0 34.1503 0 22C0 9.84974 10.2975 0 23 0C35.7025 0 46 9.84974 46 22Z" fill="url(#paint0_linear_0_19)"/>
+<mask id="stroke0_0_19" fill="white">
+<path d="M46 22C46 34.1503 35.7025 44 23 44C10.2975 44 0 34.1503 0 22C0 9.84974 10.2975 0 23 0C35.7025 0 46 9.84974 46 22Z"/>
+</mask>
+<path d="M46 22C46 34.1503 35.7025 44 23 44C10.2975 44 0 34.1503 0 22C0 9.84974 10.2975 0 23 0C35.7025 0 46 9.84974 46 22Z" stroke-width="4" stroke="#3F4052" mask="url(#stroke0_0_19)"/>
+</g>
+<path id="Badge highlight" d="M3 15.5C5 5.5 16 1.5 27 3.5" stroke-width="2" stroke="#EEE8FD"/>
+<path id="Padlock shackle" d="M16 20.25V14.25C16 7.25 25 7.25 25 14.25V20.25" stroke-width="2.5" stroke="#47405D"/>
+<path id="Padlock body" d="M15 20H28V31H15V20Z" fill="#827B9E" stroke-width="2" stroke="#403A56"/>
+<path id="Keyhole" d="M21 26C21 22 26 22 26 26L25 27V31H22V27L21 26Z" fill="#3A354D"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_19" x1="9.2" y1="0" x2="9.2" y2="44" gradientUnits="userSpaceOnUse">
+<stop stop-color="#E3D9EC"/>
+<stop offset="0.5" stop-color="#B9B6DC"/>
+<stop offset="1" stop-color="#8886B4"/>
+</linearGradient>
+</defs>
+</svg>

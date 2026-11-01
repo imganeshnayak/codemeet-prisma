@@ -1,0 +1,28 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="100" height="88" viewBox="0 0 100 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Golden temple">
+<g id="Temple outline">
+<path d="M8 73V30H18V19H30V9H42V0H61V9H73V20H83V30H93V73H8Z" fill="#755319"/>
+<mask id="stroke0_0_322" fill="white">
+<path d="M8 73V30H18V19H30V9H42V0H61V9H73V20H83V30H93V73H8Z"/>
+</mask>
+<path d="M8 73V30H18V19H30V9H42V0H61V9H73V20H83V30H93V73H8Z" stroke-width="4" stroke="#374521" mask="url(#stroke0_0_322)"/>
+</g>
+<path id="Golden stone" d="M12 69V34H23V24H33V14H69V24H79V34H88V69H12Z" fill="#E9B233"/>
+<path id="Temple details" d="M16 34H23V65H16V34ZM75 34H82V65H75V34ZM28 26H72V30H28V26ZM35 16H66V20H35V16ZM11 70H90V75H11V70Z" fill="#FFF08A"/>
+<g id="Temple doorway">
+<path d="M37 70V43L43 36H59L66 43V70H37Z" fill="#764314"/>
+<mask id="stroke1_0_322" fill="white">
+<path d="M37 70V43L43 36H59L66 43V70H37Z"/>
+</mask>
+<path d="M37 70V43L43 36H59L66 43V70H37Z" stroke-width="4" stroke="#CE8B1D" mask="url(#stroke1_0_322)"/>
+</g>
+<path id="Doorway light" d="M44 69V44L48 41H57L60 45V69H55V45H48V69H44Z" fill="#DC8B24"/>
+<g id="Temple steps">
+<path d="M30 74H73V79H78V84H26V79H30V74Z" fill="#F5D164"/>
+<mask id="stroke2_0_322" fill="white">
+<path d="M30 74H73V79H78V84H26V79H30V74Z"/>
+</mask>
+<path d="M30 74H73V79H78V84H26V79H30V74Z" stroke-width="2" stroke="#9F741E" mask="url(#stroke2_0_322)"/>
+</g>
+</g>
+</svg>
