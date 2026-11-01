@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { formatEventDate, SevaEvent } from "./events";
+import { ApiTaskSubmission, rewardsApi } from "./api";
 
 const assetPathPrefix = "/assets";
 const imgProfile = `${assetPathPrefix}/80e95.png`;
@@ -35,6 +37,29 @@ const imgPhone = `${assetPathPrefix}/f21eb.svg`;
 const imgMessageSquare = `${assetPathPrefix}/f98c3.svg`;
 
 export default function EventVolunteers({ event, onBack, onAssignments, onPhotos }: { event: SevaEvent; onBack: () => void; onAssignments: () => void; onPhotos: () => void }) {
+  const [submissions, setSubmissions] = useState<ApiTaskSubmission[]>([]);
+  const [reviewError, setReviewError] = useState("");
+
+  useEffect(() => {
+    if (!/^[a-f\d]{24}$/i.test(event.id)) return;
+    rewardsApi.listSubmissions(event.id)
+      .then(({ submissions: next }) => setSubmissions(next))
+      .catch(() => setSubmissions([]));
+  }, [event.id]);
+
+  async function reviewSubmission(
+    submission: ApiTaskSubmission,
+    status: "approved" | "rejected" | "resubmission_requested",
+  ) {
+    setReviewError("");
+    try {
+      const { submission: updated } = await rewardsApi.reviewSubmission(submission.id, status);
+      setSubmissions((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Could not review proof.");
+    }
+  }
+
   return (
     <div className="bg-[#fcf8ff] content-stretch flex flex-col items-start relative min-h-dvh w-full" data-node-id="174:11970" data-name="Event Volunteers mobile">
       <div className="absolute bottom-[0.4px] h-[62px] left-0 overflow-clip w-[543px]" data-node-id="174:11971" data-name="Botanical footer">
@@ -348,6 +373,27 @@ export default function EventVolunteers({ event, onBack, onAssignments, onPhotos
             </div>
           </div>
         </div>
+        {submissions.length > 0 && (
+          <section className="w-full rounded-[18px] border border-[#d5c9e1] bg-white p-4">
+            <h2 className="font-['Arimo:Bold'] text-[18px] font-bold text-[#29115e]">Task proof approvals</h2>
+            <div className="mt-3 flex flex-col gap-3">
+              {submissions.map((submission) => (
+                <article className="rounded-xl border border-[#eadcf3] p-3" key={submission.id}>
+                  <img alt="Submitted task proof" className="h-32 w-full rounded-lg object-cover" src={submission.proof.imageUrl} />
+                  <p className="mt-2 text-sm font-semibold text-[#29115e]">Status: {submission.status}</p>
+                  {submission.status === "submitted" && (
+                    <div className="mt-2 flex gap-2">
+                      <button className="rounded-lg bg-[#8c23df] px-3 py-2 text-xs font-bold text-white" onClick={() => reviewSubmission(submission, "approved")} type="button">Approve +50 XP</button>
+                      <button className="rounded-lg bg-[#ffe1ef] px-3 py-2 text-xs font-bold text-[#8e246d]" onClick={() => reviewSubmission(submission, "resubmission_requested")} type="button">Request resubmission</button>
+                      <button className="rounded-lg border border-[#d5c9e1] px-3 py-2 text-xs font-bold" onClick={() => reviewSubmission(submission, "rejected")} type="button">Reject</button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+            {reviewError && <p className="mt-2 text-sm text-red-600" role="alert">{reviewError}</p>}
+          </section>
+        )}
       </div>
     </div>
   );

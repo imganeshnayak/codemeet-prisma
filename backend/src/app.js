@@ -8,6 +8,7 @@ const eventRoutes = require('./routes/events');
 const articleRoutes = require('./routes/articles');
 const donationRoutes = require('./routes/donations');
 const taskRoutes = require('./routes/tasks');
+const rewardRoutes = require('./routes/rewards');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/donations', donationRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/rewards', rewardRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Not found.' });

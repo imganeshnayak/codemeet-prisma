@@ -47,6 +47,7 @@ export type ApiEvent = {
 
 export type ApiTask = {
   id: string
+  eventId?: string
   creatorId?: string
   category: string
   title: string
@@ -59,6 +60,32 @@ export type ApiTask = {
   days: string
   image: string
   donation?: boolean
+}
+
+export type ApiTaskSubmission = {
+  id: string
+  taskId: string
+  eventId: string
+  volunteerId: string
+  status: "submitted" | "approved" | "rejected" | "resubmission_requested"
+  proof: {
+    imageUrl: string
+    coordinates?: string
+    location?: string
+    capturedAt?: string
+  }
+  review?: { note?: string }
+  awardedXp: number
+  badgeId: string
+}
+
+export type ApiArenaProgress = {
+  totalXp: number
+  completedTasks: number
+  approvedTasks: number
+  currentLevel: number
+  unlockedLevels: number[]
+  badges: { id: string; name: string; description: string; icon: string; awardedAt: string }[]
 }
 
 export type AuthInput = {
@@ -236,6 +263,29 @@ export const tasksApi = {
     points: string
     image?: string
   }) => request<TaskResponse>("/tasks", { method: "POST", body: input }),
+}
+
+export const rewardsApi = {
+  getProgress: () =>
+    request<{ progress: ApiArenaProgress }>("/rewards/progress"),
+  listSubmissions: (eventId?: string) =>
+    request<{ submissions: ApiTaskSubmission[] }>(
+      eventId ? `/rewards/submissions?eventId=${encodeURIComponent(eventId)}` : "/rewards/submissions",
+    ),
+  submitProof: (taskId: string, proof: ApiTaskSubmission["proof"]) =>
+    request<{ submission: ApiTaskSubmission }>(`/rewards/tasks/${taskId}/submit`, {
+      method: "POST",
+      body: { proof },
+    }),
+  reviewSubmission: (
+    submissionId: string,
+    status: "approved" | "rejected" | "resubmission_requested",
+    note?: string,
+  ) =>
+    request<{ submission: ApiTaskSubmission }>(`/rewards/submissions/${submissionId}/review`, {
+      method: "POST",
+      body: { status, note },
+    }),
 }
 export type ApiArticle = {
   id: string

@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from "react"
+import { rewardsApi } from "./api"
 
 const asset = (name: string) => `/assets/geo-proof/${name}`
 
-export default function GeoTagProof({ onBack }: { onBack: () => void }) {
+export default function GeoTagProof({
+  onBack,
+  taskId,
+  onSubmitted,
+}: {
+  onBack: () => void
+  taskId?: string
+  onSubmitted?: () => void
+}) {
   const [captured, setCaptured] = useState(false)
   const [photo, setPhoto] = useState("")
   const [cameraError, setCameraError] = useState("")
@@ -11,6 +20,8 @@ export default function GeoTagProof({ onBack }: { onBack: () => void }) {
     coordinates: "Location unavailable",
   })
   const [capturedAt, setCapturedAt] = useState("")
+  const [submitError, setSubmitError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -108,6 +119,25 @@ export default function GeoTagProof({ onBack }: { onBack: () => void }) {
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
+      }
+
+      async function submitProof() {
+        if (!taskId || !photo) return
+        setSubmitting(true)
+        setSubmitError("")
+        try {
+          await rewardsApi.submitProof(taskId, {
+            imageUrl: photo,
+            coordinates: location.coordinates,
+            location: location.label,
+            capturedAt,
+          })
+          onSubmitted?.()
+        } catch (error) {
+          setSubmitError(error instanceof Error ? error.message : "Could not submit proof.")
+        } finally {
+          setSubmitting(false)
+        }
       }
     } catch {
       setCameraError("Camera access is unavailable. Check browser permissions.")
@@ -247,6 +277,17 @@ export default function GeoTagProof({ onBack }: { onBack: () => void }) {
           <span>{captured ? "Retake Photo" : "Capture Proof"}</span>
           <img alt="" src={asset("3b555.svg")} />
         </button>
+        {taskId && captured && (
+          <button
+            className="geo-proof-capture is-captured"
+            disabled={submitting}
+            onClick={submitProof}
+            type="button"
+          >
+            <span>{submitting ? "Submitting..." : "Submit for approval"}</span>
+          </button>
+        )}
+        {submitError && <p className="geo-proof-camera-error" role="alert">{submitError}</p>}
       </section>
 
       <div className="geo-proof-botanical" aria-hidden="true">

@@ -45,6 +45,8 @@ const taskSchema = new Schema(
 taskSchema.methods.toPublicJSON = function toPublicJSON() {
   return {
     id: this._id.toString(),
+    eventId: this.eventId.toString(),
+    creatorId: this.creatorId.toString(),
     creatorId: this.creatorId.toString(),
     category: this.category,
     title: this.title,

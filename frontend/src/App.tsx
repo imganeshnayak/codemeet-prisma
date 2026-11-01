@@ -11,6 +11,8 @@ import {
   eventsApi,
   tasksApi,
   donationsApi,
+  rewardsApi,
+  ApiArenaProgress,
 } from "./api"
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
@@ -646,6 +648,18 @@ function TaskCard({
             <Icon className="h-5 w-5 text-[#2f9c58]" name="leaf" />
             Earn {task.points} Impact Points
           </span>
+          {onOpenProof && task.id && (
+            <button
+              className="rounded-lg border-2 border-[#18151d] bg-white px-3 py-2 text-sm font-bold"
+              onClick={(event) => {
+                event.stopPropagation()
+                onOpenProof()
+              }}
+              type="button"
+            >
+              Submit proof
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -718,7 +732,7 @@ function TasksScreen({
   onLikeTask: (task: Task) => void
   onLogout: () => void
   onNavigate: (screen: AppScreen) => void
-  onOpenProof: () => void
+  onOpenProof: (task: Task) => void
   onRefresh?: () => void
 }) {
   useEffect(() => {
@@ -1133,9 +1147,11 @@ function ProfileScreen({
 
 function ArenaScreen({
   profile: _profile,
+  progress,
   onNavigate,
 }: {
   profile: ProfileData
+  progress: ApiArenaProgress
   onNavigate: (screen: AppScreen) => void
 }) {
   const [arenaView, setArenaView] = useState<"map" | "leaderboard">("map")
@@ -1303,6 +1319,21 @@ function ArenaScreen({
             <PixelLeaderboard />
           </div>
         )}
+      </section>
+      <section className="mx-auto max-w-[1100px] px-5 py-5 sm:px-8">
+        <div className="rounded-2xl border-2 border-[#18151d] bg-white p-4 shadow-[3px_4px_0_#18151d]">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-outfit-extrabold text-xl">Your badges</h2>
+            <span className="font-outfit-bold text-sm text-[#8c23df]">{progress.totalXp} XP · Level {progress.currentLevel}</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {progress.badges.length ? progress.badges.map((badge) => (
+              <span className="rounded-full bg-[#efffdc] px-3 py-2 text-sm font-semibold" key={badge.id}>
+                {badge.icon} {badge.name}
+              </span>
+            )) : <p className="text-sm text-[#756c7b]">Approved tasks will unlock your first badge.</p>}
+          </div>
+        </div>
       </section>
 
       <BottomNav active="Arena" onNavigate={onNavigate} />
@@ -1690,6 +1721,15 @@ export default function App() {
     "home" | "tasks" | "my-events"
   >("tasks")
   const [activeTicket, setActiveTicket] = useState<ApiDonationTicket | null>(null)
+  const [proofTask, setProofTask] = useState<Task | null>(null)
+  const [arenaProgress, setArenaProgress] = useState<ApiArenaProgress>({
+    totalXp: 0,
+    completedTasks: 0,
+    approvedTasks: 0,
+    currentLevel: 1,
+    unlockedLevels: [1],
+    badges: [],
+  })
   const [selectedCampaign, setSelectedCampaign] = useState<ApiDonationCampaign | null>(null)
   const [clashModal, setClashModal] = useState<ClashModalState>(null)
   const [donationOrigin, setDonationOrigin] = useState<
@@ -1725,6 +1765,13 @@ export default function App() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!getStoredToken()) return
+    rewardsApi.getProgress()
+      .then(({ progress }) => setArenaProgress(progress))
+      .catch(() => {})
+  }, [screen])
 
   const loadCommunityFeed = useCallback(async () => {
     try {
@@ -2296,7 +2343,8 @@ export default function App() {
           )
         }}
         onNavigate={navigateApp}
-        onOpenProof={() => {
+        onOpenProof={(task) => {
+          setProofTask(task)
           setProofOrigin("tasks")
           setScreen("geo-proof")
         }}
@@ -2323,6 +2371,7 @@ export default function App() {
       <ArenaScreen
         onNavigate={navigateApp}
         profile={profile}
+        progress={arenaProgress}
       />
     )
   }
@@ -2359,7 +2408,13 @@ export default function App() {
   }
 
   if (screen === "geo-proof") {
-    return <GeoTagProof onBack={() => setScreen(proofOrigin)} />
+    return (
+      <GeoTagProof
+        onBack={() => setScreen(proofOrigin)}
+        onSubmitted={() => setScreen(proofOrigin)}
+        taskId={proofTask?.id}
+      />
+    )
   }
 
   if (screen === "event-photos") {
