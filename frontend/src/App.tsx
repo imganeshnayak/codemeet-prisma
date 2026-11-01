@@ -1,4 +1,14 @@
-import { FormEvent, useEffect, useRef, useState } from "react"
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react"
+import {
+  ApiError,
+  ApiUser,
+  authApi,
+  clearStoredToken,
+  getStoredToken,
+  ProfileUpdate,
+  profileApi,
+  storeToken,
+} from "./api"
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
 import DonationTracker from "./DonationTracker"
@@ -27,6 +37,29 @@ type ProfileData = {
   location: string
   bio: string
   interests: string[]
+  photoUrl: string
+}
+
+function toProfileData(user: ApiUser): ProfileData {
+  return {
+    name: user.name,
+    email: user.email,
+    location: user.location,
+    bio: user.bio,
+    interests: user.interests,
+    photoUrl: user.photoUrl ?? "",
+  }
+}
+
+function initialsFromName(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  )
 }
 
 type Task = {
@@ -290,14 +323,43 @@ function AuthScreen({
 }: {
   mode: "login" | "register"
   onChangeMode: () => void
-  onSuccess: () => void
+  onSuccess: (user: ApiUser) => void
 }) {
   const [showPassword, setShowPassword] = useState(false)
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
   const isRegister = mode === "register"
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    setError("")
+  }, [mode])
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onSuccess()
+    if (submitting) return
+
+    setError("")
+    setSubmitting(true)
+
+    try {
+      const result = isRegister
+        ? await authApi.register({ name, email, password })
+        : await authApi.login({ email, password })
+
+      storeToken(result.token)
+      onSuccess(result.user)
+    } catch (requestError) {
+      setError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "Something went wrong. Please try again.",
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -344,13 +406,6 @@ function AuthScreen({
           <div className="w-full max-w-[460px]">
             <div className="mb-10 flex items-center justify-between md:hidden">
               <Logo />
-              <button
-                className="font-outfit-semibold text-sm text-[#7020d4]"
-                onClick={() => onSuccess()}
-                type="button"
-              >
-                View demo
-              </button>
             </div>
             <p className="font-outfit-semibold mb-2 text-sm uppercase tracking-[0.18em] text-[#7c28df]">
               {isRegister ? "Join the movement" : "Welcome back"}
@@ -372,9 +427,11 @@ function AuthScreen({
                     <Icon name="profile" />
                     <input
                       autoComplete="name"
+                      onChange={(event) => setName(event.target.value)}
                       placeholder="Your full name"
                       required
                       type="text"
+                      value={name}
                     />
                   </div>
                 </label>
@@ -385,9 +442,11 @@ function AuthScreen({
                   <Icon name="mail" />
                   <input
                     autoComplete="email"
+                    onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
                     required
                     type="email"
+                    value={email}
                   />
                 </div>
               </label>
@@ -400,9 +459,11 @@ function AuthScreen({
                       isRegister ? "new-password" : "current-password"
                     }
                     minLength={6}
+                    onChange={(event) => setPassword(event.target.value)}
                     placeholder="At least 6 characters"
                     required
                     type={showPassword ? "text" : "password"}
+                    value={password}
                   />
                   <button
                     aria-label={
@@ -441,27 +502,30 @@ function AuthScreen({
                   </button>
                 </div>
               )}
-              <button className="primary-auth-button" type="submit">
-                {isRegister ? "Create account" : "Sign in"}
+              {error && (
+                <p
+                  className="font-outfit-regular rounded-[10px] border-2 border-[#e04b5f] bg-[#fff0f3] px-4 py-3 text-sm text-[#b42a3f]"
+                  role="alert"
+                >
+                  {error}
+                </p>
+              )}
+              <button
+                className="primary-auth-button disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={submitting}
+                type="submit"
+              >
+                {submitting
+                  ? isRegister
+                    ? "Creating account..."
+                    : "Signing in..."
+                  : isRegister
+                    ? "Create account"
+                    : "Sign in"}
                 <Icon name="arrow" />
               </button>
             </form>
 
-            <div className="my-6 flex items-center gap-4 text-sm text-[#8c8590]">
-              <span className="h-px flex-1 bg-[#ded8e5]" />
-              or continue with
-              <span className="h-px flex-1 bg-[#ded8e5]" />
-            </div>
-            <button
-              className="font-outfit-semibold flex h-[52px] w-full items-center justify-center gap-3 rounded-[13px] border-2 border-[#d8d1df] bg-white transition hover:border-[#7c28df] hover:bg-[#faf7ff]"
-              onClick={onSuccess}
-              type="button"
-            >
-              <span className="font-outfit-extrabold text-xl text-[#4285f4]">
-                G
-              </span>
-              Google
-            </button>
             <p className="font-outfit-regular mt-7 text-center text-[15px] text-[#686171]">
               {isRegister ? "Already have an account?" : "New to SevaSathi?"}{" "}
               <button
@@ -844,9 +908,17 @@ function ProfileScreen({
 
         <div className="profile-hero">
           <div className="relative shrink-0">
-            <div className="font-outfit-extrabold flex h-28 w-28 items-center justify-center rounded-[34px] border-[3px] border-[#18151d] bg-[#d8f23c] text-[38px] shadow-[6px_7px_0_#18151d] sm:h-36 sm:w-36 sm:text-[48px]">
-              AS
-            </div>
+            {profile.photoUrl ? (
+              <img
+                alt={`${profile.name}'s profile photo`}
+                className="h-28 w-28 rounded-[34px] border-[3px] border-[#18151d] object-cover shadow-[6px_7px_0_#18151d] sm:h-36 sm:w-36"
+                src={profile.photoUrl}
+              />
+            ) : (
+              <div className="font-outfit-extrabold flex h-28 w-28 items-center justify-center rounded-[34px] border-[3px] border-[#18151d] bg-[#d8f23c] text-[38px] shadow-[6px_7px_0_#18151d] sm:h-36 sm:w-36 sm:text-[48px]">
+                {initialsFromName(profile.name)}
+              </div>
+            )}
             <span className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#18151d] bg-[#f08be9]">
               <Icon className="h-5 w-5" name="spark" />
             </span>
@@ -1193,12 +1265,19 @@ function EditProfileScreen({
   profile,
   onCancel,
   onSave,
+  onPhotoChange,
 }: {
   profile: ProfileData
   onCancel: () => void
-  onSave: (profile: ProfileData) => void
+  onSave: (profile: ProfileData) => Promise<void>
+  onPhotoChange: (file: File) => Promise<ProfileData>
 }) {
   const [draft, setDraft] = useState(profile)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [photoError, setPhotoError] = useState("")
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const interestOptions = [
     "Environment",
     "Education",
@@ -1207,9 +1286,57 @@ function EditProfileScreen({
     "Health",
   ]
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function handlePhotoSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file || uploadingPhoto) return
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setPhotoError("Choose a JPG, PNG, or WebP image.")
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("Photo must be 5 MB or smaller.")
+      return
+    }
+
+    setPhotoError("")
+    setError("")
+    setUploadingPhoto(true)
+
+    try {
+      const updated = await onPhotoChange(file)
+      setDraft((current) => ({ ...current, photoUrl: updated.photoUrl }))
+    } catch (requestError) {
+      setPhotoError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "Could not upload your photo. Please try again.",
+      )
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onSave(draft)
+    if (saving) return
+
+    setError("")
+    setSaving(true)
+
+    try {
+      await onSave(draft)
+    } catch (requestError) {
+      setError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "Could not save your profile. Please try again.",
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   function toggleInterest(interest: string) {
@@ -1248,14 +1375,45 @@ function EditProfileScreen({
             Keep your volunteer profile fresh and personal.
           </p>
 
-          <div className="my-8 flex items-center gap-5">
-            <div className="font-outfit-extrabold flex h-24 w-24 items-center justify-center rounded-[30px] border-[3px] border-[#18151d] bg-[#d8f23c] text-[32px] shadow-[5px_6px_0_#18151d]">
-              AS
+          <div className="my-8 flex flex-wrap items-center gap-5">
+            {draft.photoUrl ? (
+              <img
+                alt={`${draft.name}'s profile photo`}
+                className="h-24 w-24 rounded-[30px] border-[3px] border-[#18151d] object-cover shadow-[5px_6px_0_#18151d]"
+                src={draft.photoUrl}
+              />
+            ) : (
+              <div className="font-outfit-extrabold flex h-24 w-24 items-center justify-center rounded-[30px] border-[3px] border-[#18151d] bg-[#d8f23c] text-[32px] shadow-[5px_6px_0_#18151d]">
+                {initialsFromName(draft.name)}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <button
+                className="profile-edit-button disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={uploadingPhoto}
+                onClick={() => photoInputRef.current?.click()}
+                type="button"
+              >
+                <Icon className="h-5 w-5" name="camera" />
+                {uploadingPhoto
+                  ? "Uploading..."
+                  : draft.photoUrl
+                  ? "Change photo"
+                  : "Upload photo"}
+              </button>
+              <input
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePhotoSelected}
+                ref={photoInputRef}
+                type="file"
+              />
+              {photoError && (
+                <p className="font-outfit-regular text-sm text-[#b42a3f]" role="alert">
+                  {photoError}
+                </p>
+              )}
             </div>
-            <button className="profile-edit-button" type="button">
-              <Icon className="h-5 w-5" name="camera" />
-              Change photo
-            </button>
           </div>
 
           <form className="grid gap-5" onSubmit={submit}>
@@ -1344,16 +1502,29 @@ function EditProfileScreen({
                 })}
               </div>
             </fieldset>
+            {error && (
+              <p
+                className="font-outfit-regular rounded-[10px] border-2 border-[#e04b5f] bg-[#fff0f3] px-4 py-3 text-sm text-[#b42a3f]"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
             <div className="mt-3 grid grid-cols-2 gap-4">
               <button
-                className="font-outfit-bold h-14 rounded-[13px] border-2 border-[#18151d] bg-white"
+                className="font-outfit-bold h-14 rounded-[13px] border-2 border-[#18151d] bg-white disabled:opacity-70"
+                disabled={saving}
                 onClick={onCancel}
                 type="button"
               >
                 Cancel
               </button>
-              <button className="primary-auth-button mt-0" type="submit">
-                Save changes
+              <button
+                className="primary-auth-button mt-0 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={saving}
+                type="submit"
+              >
+                {saving ? "Saving..." : "Save changes"}
                 <Icon name="check" />
               </button>
             </div>
@@ -1365,7 +1536,9 @@ function EditProfileScreen({
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("home")
+  const [screen, setScreen] = useState<Screen>(() =>
+    getStoredToken() ? "home" : "login",
+  )
   const [events, setEvents] = useState<SevaEvent[]>(initialEvents)
   const [selectedEventId, setSelectedEventId] = useState(
     "organizing-tree-drive",
@@ -1385,10 +1558,42 @@ export default function App() {
     location: "Mangaluru, Karnataka",
     bio: "Weekend volunteer, nature lover, and believer in the power of small actions to create lasting change.",
     interests: ["Environment", "Community", "Education"],
+    photoUrl: "",
   })
+
+  useEffect(() => {
+    if (!getStoredToken()) return
+
+    let cancelled = false
+
+    authApi
+      .me()
+      .then(({ user }) => {
+        if (!cancelled) setProfile(toProfileData(user))
+      })
+      .catch(() => {
+        if (cancelled) return
+        clearStoredToken()
+        setScreen("login")
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function navigateApp(destination: AppScreen) {
     setScreen(destination)
+  }
+
+  function handleAuthSuccess(user: ApiUser) {
+    setProfile(toProfileData(user))
+    setScreen("home")
+  }
+
+  function handleLogout() {
+    clearStoredToken()
+    setScreen("login")
   }
 
   if (screen === "donation-tracker") {
@@ -1502,7 +1707,7 @@ export default function App() {
   if (screen === "tasks") {
     return (
       <TasksScreen
-        onLogout={() => setScreen("login")}
+        onLogout={handleLogout}
         onNavigate={navigateApp}
         onOpenProof={() => {
           setProofOrigin("tasks")
@@ -1520,7 +1725,7 @@ export default function App() {
     return (
       <ProfileScreen
         onEdit={() => setScreen("edit-profile")}
-        onLogout={() => setScreen("login")}
+        onLogout={handleLogout}
         onNavigate={navigateApp}
         profile={profile}
       />
@@ -1544,8 +1749,22 @@ export default function App() {
     return (
       <EditProfileScreen
         onCancel={() => setScreen("profile")}
-        onSave={(updatedProfile) => {
+        onPhotoChange={async (file) => {
+          const { user } = await profileApi.uploadPhoto(file)
+          const updatedProfile = toProfileData(user)
           setProfile(updatedProfile)
+          return updatedProfile
+        }}
+        onSave={async (updatedProfile) => {
+          const payload: ProfileUpdate = {
+            name: updatedProfile.name,
+            email: updatedProfile.email,
+            location: updatedProfile.location,
+            bio: updatedProfile.bio,
+            interests: updatedProfile.interests,
+          }
+          const { user } = await profileApi.update(payload)
+          setProfile(toProfileData(user))
           setScreen("profile")
         }}
         profile={profile}
@@ -1565,7 +1784,7 @@ export default function App() {
     <AuthScreen
       mode={screen}
       onChangeMode={() => setScreen(screen === "login" ? "register" : "login")}
-      onSuccess={() => setScreen("tasks")}
+      onSuccess={handleAuthSuccess}
     />
   )
 }
