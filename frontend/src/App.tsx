@@ -746,15 +746,6 @@ function TasksScreen({
             <Icon className="h-6 w-6" name="bell" />
             <span className="absolute right-2 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#ff3d56]" />
           </button>
-          <button
-            aria-label="Log out"
-            className="font-outfit-bold flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#18151d] bg-[#d8f23c] text-sm"
-            onClick={onLogout}
-            title="Log out"
-            type="button"
-          >
-            AS
-          </button>
         </div>
       </header>
 

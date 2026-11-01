@@ -176,3 +176,64 @@ export const eventsApi = {
     image: string
   }) => request<EventResponse>("/events", { method: "POST", body: input }),
 }
+export type ApiArticle = {
+  id: string
+  alt: string
+  category: string
+  image: string
+  meta: string
+  title: string
+  description: string
+  readTime?: string
+  quote?: string
+  content?: string[]
+  organizer?: {
+    name: string
+    avatar: string
+    verified: boolean
+    role: string
+  }
+  stats?: { label: string; value: string }[]
+  geoTag?: {
+    location: string
+    verified: boolean
+  }
+  relatedEvent?: {
+    title: string
+    date: string
+    time: string
+    location: string
+    volunteers: string
+    xp: number
+  }
+  comments?: {
+    id: string
+    author: string
+    avatar: string
+    time: string
+    text: string
+  }[]
+  likesCount?: number
+  createdAt?: string
+}
+
+export const articlesApi = {
+  list: () =>
+    request<{ articles: ApiArticle[] }>("/articles", { auth: false }),
+  get: (id: string) =>
+    request<{ article: ApiArticle }>(`/articles/${id}`, { auth: false }),
+  create: (input: Partial<ApiArticle>) =>
+    request<{ article: ApiArticle }>("/articles", { method: "POST", body: input }),
+  like: (id: string) =>
+    request<{ success: boolean; likesCount: number }>(`/articles/${id}/like`, {
+      method: "POST",
+    }),
+  addComment: (id: string, text: string, author?: string) =>
+    request<{
+      comment: NonNullable<ApiArticle["comments"]>[number]
+      comments: ApiArticle["comments"]
+    }>(`/articles/${id}/comments`, {
+      method: "POST",
+      body: { text, author },
+    }),
+}
