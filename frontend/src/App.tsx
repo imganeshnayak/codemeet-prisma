@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
 import DonationTracker from "./DonationTracker"
@@ -1022,6 +1022,7 @@ function ArenaScreen({
   const [rewardClaimed, setRewardClaimed] = useState(false)
   const stageRef = useRef<HTMLElement | null>(null)
   const [canvasScale, setCanvasScale] = useState<number | null>(null)
+  const [stageH, setStageH] = useState<number | null>(null)
 
   useEffect(() => {
     const stage = stageRef.current
@@ -1029,11 +1030,21 @@ function ArenaScreen({
     const compute = () => {
       if (window.innerWidth >= 768) {
         setCanvasScale(null)
+        setStageH(null)
         return
       }
-      const base = arenaView === "leaderboard" ? 928 : 640
       const availableHeight = window.innerHeight - 88
-      setCanvasScale(Math.min(stage.clientWidth / 390, availableHeight / base))
+      if (arenaView === "leaderboard") {
+        // Scale to fill the full width; overflow:hidden on stage clips excess height
+        const scale = stage.clientWidth / 390
+        setCanvasScale(scale)
+        setStageH(Math.min(928 * scale, availableHeight))
+      } else {
+        // Scale map to cover the stage so no empty green background is visible
+        const scale = Math.max(stage.clientWidth / 390, availableHeight / 640)
+        setCanvasScale(scale)
+        setStageH(availableHeight)
+      }
     }
     compute()
     const observer = new ResizeObserver(compute)
@@ -1067,8 +1078,8 @@ function ArenaScreen({
             : "pixel-art-stage-map"
         } md:!h-[calc(100dvh-88px)] md:!min-h-0 md:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.03)] [@media(min-width:768px)_and_(min-height:800px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.1)] [@media(min-width:768px)_and_(min-height:900px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.25)] [@media(min-width:768px)_and_(min-height:1000px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.4)]`}
         style={
-          canvasScale !== null
-            ? { height: (arenaView === "leaderboard" ? 928 : 640) * canvasScale }
+          stageH !== null
+            ? { height: stageH }
             : undefined
         }
       >
@@ -1097,7 +1108,7 @@ function ArenaScreen({
               className="pixel-art-canvas pixel-art-canvas-map"
               style={
                 canvasScale !== null
-                  ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 640 * canvasScale }
+                  ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 640 }
                   : undefined
               }
             >
@@ -1164,7 +1175,7 @@ function ArenaScreen({
             className="pixel-art-canvas pixel-art-canvas-leaderboard"
             style={
               canvasScale !== null
-                ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 928 * canvasScale }
+                ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 928 }
                 : undefined
             }
           >
