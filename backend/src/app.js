@@ -3,6 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
+const memoriesRoutes = require('./routes/memories');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/memories', memoriesRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Not found.' });

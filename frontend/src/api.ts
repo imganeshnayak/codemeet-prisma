@@ -15,6 +15,17 @@ export type ProfileUpdate = Pick<
   "name" | "email" | "location" | "bio" | "interests"
 >
 
+export type ApiMemory = {
+  id: string
+  label: string
+  src: string
+  type: "image" | "video"
+  uploaded?: boolean
+  likesCount?: number
+  liked?: boolean
+  createdAt?: string
+}
+
 export type AuthInput = {
   name?: string
   email: string
@@ -126,6 +137,22 @@ export const authApi = {
   me: () => request<UserResponse>("/auth/me"),
 }
 
+export const memoriesApi = {
+  list: () => request<{ memories: ApiMemory[] }>("/memories"),
+  upload: (file: File, label: string) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("label", label)
+    return request<{ memory: ApiMemory }>("/memories", {
+      method: "POST",
+      formData,
+    })
+  },
+  remove: (id: string) =>
+    request<{ success: boolean }>(`/memories/${id}`, { method: "DELETE" }),
+  like: (id: string) =>
+    request<{ memory: ApiMemory }>(`/memories/${id}/like`, { method: "POST" }),
+}
 export const profileApi = {
   update: (input: ProfileUpdate) =>
     request<UserResponse>("/profile", { method: "PATCH", body: input }),
