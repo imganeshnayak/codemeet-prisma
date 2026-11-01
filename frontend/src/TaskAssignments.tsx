@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react"
-import { ApiTask, tasksApi } from "./api"
+import { ApiTask, ApiVolunteer, eventsApi, tasksApi } from "./api"
 import { formatEventDate, SevaEvent } from "./events"
 
 export default function TaskAssignments({
@@ -22,6 +22,7 @@ export default function TaskAssignments({
   showNavigationTabs?: boolean
 }) {
   const [taskList, setTaskList] = useState<ApiTask[]>([])
+  const [assignedVolunteers, setAssignedVolunteers] = useState<ApiVolunteer[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [addingTask, setAddingTask] = useState(false)
@@ -37,8 +38,12 @@ export default function TaskAssignments({
     setLoading(true)
     setLoadError("")
     try {
-      const { tasks } = await tasksApi.listForEvent(event.id)
+      const [{ tasks }, { volunteers: eventVolunteers }] = await Promise.all([
+        tasksApi.listForEvent(event.id),
+        eventsApi.listVolunteers(event.id),
+      ])
       setTaskList(tasks)
+      setAssignedVolunteers(eventVolunteers)
     } catch (error) {
       setTaskList([])
       setLoadError(error instanceof Error ? error.message : "Could not load tasks.")
@@ -147,6 +152,30 @@ export default function TaskAssignments({
                     <span>{task.volunteers} volunteers</span>
                     <span>{task.points} points</span>
                   </div>
+                  {(() => {
+                    const taskVolunteers = assignedVolunteers.filter(
+                      (volunteer) => volunteer.assignment === task.title,
+                    )
+                    return taskVolunteers.length > 0 ? (
+                      <div className="mt-3 border-t border-[#eee2f7] pt-3">
+                        <p className="mb-2 text-xs font-bold text-[#685775]">Assigned volunteer</p>
+                        <div className="flex flex-wrap gap-2">
+                          {taskVolunteers.map((volunteer) => (
+                            <div className="flex min-w-0 items-center gap-2 rounded-full bg-[#f5ebfb] py-1 pl-1 pr-3" key={volunteer.id}>
+                              {volunteer.photoUrl ? (
+                                <img alt="" className="size-7 rounded-full object-cover" src={volunteer.photoUrl} />
+                              ) : (
+                                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#ead5f8] text-xs font-bold text-[#6606ae]">
+                                  {volunteer.name.slice(0, 1).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="truncate text-xs font-bold">{volunteer.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null
+                  })()}
                 </article>
               ))}
             </div>

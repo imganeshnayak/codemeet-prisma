@@ -6,10 +6,12 @@ const asset = (name: string) => `/assets/geo-proof/${name}`
 export default function GeoTagProof({
   onBack,
   taskId,
+  articleId,
   onSubmitted,
 }: {
   onBack: () => void
   taskId?: string
+  articleId?: string
   onSubmitted?: () => void
 }) {
   const [captured, setCaptured] = useState(false)
@@ -162,7 +164,7 @@ export default function GeoTagProof({
         coordinates: location.coordinates,
         location: location.label,
         capturedAt: capturedAt || new Date().toLocaleString(),
-      })
+      }, articleId)
       setSubmitted(true)
       onSubmitted?.()
     } catch (error) {

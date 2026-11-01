@@ -13,8 +13,10 @@ import {
   donationsApi,
   rewardsApi,
   ApiArenaProgress,
+  ApiApprovedProof,
 } from "./api"
 import GeoTagProof from "./GeoTagProof"
+import EventPhotos from "./EventPhotos"
 import MemoryReel from "./MemoryReel"
 import DonationTracker from "./DonationTracker"
 import FeedDonationScreen from "./FeedDonationScreen"
@@ -37,7 +39,7 @@ import {
   SevaEvent,
 } from "./events"
 
-type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "accepted-volunteers" | "task-assignments" | "event-community" | "donation-tracker" | "donate-feed" | "donation-campaign-admin" | "my-events"
+type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "proof-gallery" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "accepted-volunteers" | "task-assignments" | "event-community" | "donation-tracker" | "donate-feed" | "donation-campaign-admin" | "my-events"
 type EventPage = "event-volunteers" | "task-assignments" | "event-photos" | "event-community"
 type AppScreen = "home" | "tasks" | "arena" | "memories" | "profile" | "my-events"
 type IconName = "arrow" | "award" | "back" | "bell" | "bolt" | "calendar" | "camera" | "chart" | "check" | "chevron" | "close" | "edit" | "eye" | "flame" | "heart" | "home" | "image" | "leaf" | "location" | "lock" | "mail" | "profile" | "settings" | "shield" | "spark" | "star" | "target" | "tasks" | "trophy" | "users"
@@ -1139,6 +1141,8 @@ function ArenaScreen({
   const [arenaView, setArenaView] = useState<"map" | "leaderboard">("map")
   const [showReward, setShowReward] = useState(false)
   const [rewardClaimed, setRewardClaimed] = useState(false)
+  const [selectedRewardLevel, setSelectedRewardLevel] = useState<number | null>(null)
+  const [redeemedRewards, setRedeemedRewards] = useState<number[]>([])
   const stageRef = useRef<HTMLElement | null>(null)
   const [canvasScale, setCanvasScale] = useState<number | null>(null)
   const [stageH, setStageH] = useState<number | null>(null)
@@ -1159,8 +1163,9 @@ function ArenaScreen({
         setCanvasScale(scale)
         setStageH(Math.min(928 * scale, availableHeight))
       } else {
-        // Scale map to cover the stage so no empty green background is visible
-        const scale = Math.max(stage.clientWidth / 390, availableHeight / 640)
+        // Fit the complete map inside the mobile stage instead of cropping its
+        // fixed 390x640 artwork at narrower viewport heights.
+        const scale = Math.min(stage.clientWidth / 390, availableHeight / 640)
         setCanvasScale(scale)
         setStageH(availableHeight)
       }
@@ -1178,6 +1183,29 @@ function ArenaScreen({
   function changeArenaView(view: "map" | "leaderboard") {
     setArenaView(view)
     setShowReward(false)
+  }
+
+  const rewardOffers: Record<number, { title: string; description: string }> = {
+    1: {
+      title: "Canteen meal",
+      description: "Redeem one complimentary meal at a participating community canteen.",
+    },
+    2: {
+      title: "Refreshment voucher",
+      description: "Redeem a voucher for a drink or snack after your volunteering work.",
+    },
+    3: {
+      title: "Local store gift card",
+      description: "Redeem a gift card from one of our participating local stores.",
+    },
+    4: {
+      title: "Travel support voucher",
+      description: "Redeem a small travel-support voucher for your next volunteering visit.",
+    },
+    5: {
+      title: "Community care gift card",
+      description: "Redeem a gift card and choose a useful item for yourself or your community.",
+    },
   }
 
   return (
@@ -1233,9 +1261,63 @@ function ArenaScreen({
             >
               <PixelAdventureMap
                 onLevelSix={() => setShowReward(true)}
+                onLevelSelect={(level) => setSelectedRewardLevel(level)}
                 rewardClaimed={rewardClaimed}
+                unlockedLevels={progress.unlockedLevels}
               />
             </div>
+            {selectedRewardLevel !== null && rewardOffers[selectedRewardLevel] && (
+              <div
+                aria-label={`Level ${selectedRewardLevel} reward`}
+                aria-modal="true"
+                className="arena-reward-card"
+                role="dialog"
+              >
+                <button
+                  aria-label="Close reward"
+                  className="arena-reward-close"
+                  onClick={() => setSelectedRewardLevel(null)}
+                  type="button"
+                >
+                  <Icon className="h-4 w-4" name="close" />
+                </button>
+                <span className="arena-reward-star">
+                  <Icon className="h-7 w-7" name="award" />
+                </span>
+                <p className="arena-reward-kicker">Level {selectedRewardLevel} reward</p>
+                <h2>{rewardOffers[selectedRewardLevel].title}</h2>
+                <p className="arena-reward-copy">
+                  {rewardOffers[selectedRewardLevel].description}
+                </p>
+                <svg
+                  aria-label="Dummy reward QR code"
+                  className="mx-auto my-2 h-14 w-14 rounded bg-white p-1"
+                  role="img"
+                  viewBox="0 0 21 21"
+                >
+                  <path
+                    d="M0 0h7v7H0zM14 0h7v7h-7zM0 14h7v7H0zM2 2h3v3H2zM16 2h3v3h-3zM2 16h3v3H2zM9 1h2v2H9zM8 5h3v2H8zM13 8h2v3h-2zM17 9h2v2h-2zM8 9h3v3H8zM11 13h3v2h-3zM8 16h2v3H8zM12 17h2v2h-2zM16 14h3v3h-3zM19 19h2v2h-2z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <button
+                  className="arena-reward-action"
+                  disabled={redeemedRewards.includes(selectedRewardLevel)}
+                  onClick={() => {
+                    setRedeemedRewards((current) =>
+                      current.includes(selectedRewardLevel)
+                        ? current
+                        : [...current, selectedRewardLevel],
+                    )
+                  }}
+                  type="button"
+                >
+                  {redeemedRewards.includes(selectedRewardLevel)
+                    ? "Reward redeemed"
+                    : "Redeem reward"}
+                </button>
+              </div>
+            )}
             {showReward && (
               <div
                 aria-label="Level 6 reward"
@@ -1301,21 +1383,6 @@ function ArenaScreen({
             <PixelLeaderboard />
           </div>
         )}
-      </section>
-      <section className="mx-auto max-w-[1100px] px-5 py-5 sm:px-8">
-        <div className="rounded-2xl border-2 border-[#18151d] bg-white p-4 shadow-[3px_4px_0_#18151d]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-outfit-extrabold text-xl">Your badges</h2>
-            <span className="font-outfit-bold text-sm text-[#8c23df]">{progress.totalXp} XP · Level {progress.currentLevel}</span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {progress.badges.length ? progress.badges.map((badge) => (
-              <span className="rounded-full bg-[#efffdc] px-3 py-2 text-sm font-semibold" key={badge.id}>
-                {badge.icon} {badge.name}
-              </span>
-            )) : <p className="text-sm text-[#756c7b]">Approved tasks will unlock your first badge.</p>}
-          </div>
-        </div>
       </section>
 
       <BottomNav active="Arena" onNavigate={onNavigate} />
@@ -1681,6 +1748,49 @@ function campaignToTask(c: ApiDonationCampaign): Task {
   }
 }
 
+function ProofGallery({ eventTitle, eventId, onBack }: { eventTitle: string; eventId?: string; onBack: () => void }) {
+  const [proofs, setProofs] = useState<ApiApprovedProof[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    rewardsApi.listApprovedProofs(eventTitle, eventId)
+      .then(({ proofs: approved }) => setProofs(approved))
+      .catch((requestError) => {
+        setError(requestError instanceof Error ? requestError.message : "Could not load geo-tagged proofs.")
+      })
+      .finally(() => setLoading(false))
+  }, [eventTitle])
+
+  return (
+    <main className="min-h-dvh bg-[#f7efff] px-4 py-5 text-[#18151d]">
+      <header className="mx-auto flex max-w-2xl items-center gap-3 border-b border-[#d5c9e1] pb-4">
+        <button aria-label="Back" className="rounded-full border border-[#d5c9e1] px-3 py-1 text-xl" onClick={onBack} type="button">←</button>
+        <div>
+          <h1 className="font-outfit-extrabold text-xl">Verified Proof</h1>
+          <p className="text-sm text-[#756c7b]">{eventTitle}</p>
+        </div>
+      </header>
+      <section className="mx-auto mt-5 grid max-w-2xl gap-4">
+        {loading && <p className="rounded-xl bg-white p-5 text-sm text-[#756c7b]">Loading approved proofs...</p>}
+        {!loading && error && <p className="rounded-xl bg-white p-5 text-sm text-red-600" role="alert">{error}</p>}
+        {!loading && !error && proofs.length === 0 && <p className="rounded-xl bg-white p-5 text-sm text-[#756c7b]">No approved geo-tagged proof is available yet.</p>}
+        {!loading && !error && proofs.map((proof) => (
+          <article className="overflow-hidden rounded-2xl border-2 border-[#18151d] bg-white shadow-[3px_4px_0_#18151d]" key={proof.id}>
+            <img alt={`Geo-tagged proof by ${proof.volunteerName || "volunteer"}`} className="max-h-[420px] w-full object-cover" src={proof.proof.imageUrl} />
+            <div className="p-4 text-sm">
+              <p className="font-outfit-bold">{proof.volunteerName || "Volunteer"}</p>
+              {proof.proof.location && <p className="text-[#756c7b]">{proof.proof.location}</p>}
+              {proof.proof.coordinates && <p className="text-[#756c7b]">GPS: {proof.proof.coordinates}</p>}
+              {proof.proof.capturedAt && <p className="text-[#756c7b]">{proof.proof.capturedAt}</p>}
+            </div>
+          </article>
+        ))}
+      </section>
+    </main>
+  )
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
     const eventPage = getEventPageFromHash()
@@ -1693,6 +1803,8 @@ export default function App() {
   const [selectedEventId, setSelectedEventId] = useState(() =>
     getEventPageFromHash()?.eventId || "organizing-tree-drive",
   )
+  const [selectedProofEventTitle, setSelectedProofEventTitle] = useState("")
+  const [selectedProofEventId, setSelectedProofEventId] = useState("")
   const [taskAssignmentsOrigin, setTaskAssignmentsOrigin] = useState<
     "tasks" | "my-events"
   >("my-events")
@@ -1707,6 +1819,7 @@ export default function App() {
   >("tasks")
   const [activeTicket, setActiveTicket] = useState<ApiDonationTicket | null>(null)
   const [proofTask, setProofTask] = useState<Task | null>(null)
+  const [proofArticleId, setProofArticleId] = useState<string | undefined>()
   const [arenaProgress, setArenaProgress] = useState<ApiArenaProgress>({
     totalXp: 0,
     completedTasks: 0,
@@ -1743,6 +1856,7 @@ export default function App() {
         "profile",
         "edit-profile",
         "geo-proof",
+        "proof-gallery",
         "event-photos",
         "swipe-donation",
         "create-event",
@@ -2085,9 +2199,17 @@ export default function App() {
 
       <HomeScreen
         onNavigate={navigateApp}
-        onVerify={() => {
+        onVerify={(articleId) => {
           setProofOrigin("home")
+          setProofArticleId(articleId)
           setScreen("geo-proof")
+        }}
+        onViewProof={(eventTitle) => {
+          const title = eventTitle || ""
+          const matchedEvent = events.find((event) => event.title === title)
+          setSelectedProofEventTitle(title)
+          setSelectedProofEventId(matchedEvent?.id || "")
+          setScreen("proof-gallery")
         }}
         onJoinEvent={async (relatedEvent) => {
           // Check for schedule clash with user's already joined or hosted events
@@ -2186,6 +2308,16 @@ export default function App() {
     )
   }
 
+  if (screen === "proof-gallery") {
+    return (
+      <ProofGallery
+        eventTitle={selectedProofEventTitle}
+        eventId={selectedProofEventId}
+        onBack={() => setScreen("home")}
+      />
+    )
+  }
+
   if (screen === "create-event") {
     return (
       <CreateEvent
@@ -2277,7 +2409,6 @@ export default function App() {
         event={selectedEvent}
         showNavigationTabs={false}
         onAssignments={() => setScreen("task-assignments")}
-        onBack={() => setScreen("event-volunteers")}
         onCommunity={() => setScreen("event-community")}
         onTaskCreated={(task) => {
           setFeedTasks((current) => [...current, task])
@@ -2501,12 +2632,24 @@ export default function App() {
         onBack={() => setScreen(proofOrigin)}
         onSubmitted={() => setScreen(proofOrigin)}
         taskId={proofTask?.id}
+        articleId={proofArticleId}
       />
     )
   }
 
   if (screen === "event-photos") {
-    return <GeoTagProof onBack={() => setScreen("event-volunteers")} />
+    const selectedEvent =
+      events.find((event) => event.id === selectedEventId) ??
+      events.find((event) => event.role === "organizing")
+    if (!selectedEvent) {
+      return <AuthScreen mode="login" onChangeMode={() => setScreen("register")} onSuccess={handleAuthSuccess} />
+    }
+    return (
+      <EventPhotos
+        event={selectedEvent}
+        onBack={() => setScreen("event-volunteers")}
+      />
+    )
   }
 
   return (

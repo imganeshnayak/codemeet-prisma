@@ -67,6 +67,7 @@ export type ApiTaskSubmission = {
   taskId: string
   eventId: string
   volunteerId: string
+  articleId?: string
   status: "submitted" | "approved" | "rejected" | "resubmission_requested"
   proof: {
     imageUrl: string
@@ -77,6 +78,50 @@ export type ApiTaskSubmission = {
   review?: { note?: string }
   awardedXp: number
   badgeId: string
+}
+
+export type ApiApprovedProof = ApiTaskSubmission & {
+  volunteerName?: string
+}
+
+export type ApiChatMessage = {
+  id: string
+  authorId: string
+  authorName: string
+  text: string
+  mine: boolean
+  createdAt: string
+}
+
+export type ApiLeaderboardEntry = {
+  rank: number
+  userId: string
+  name: string
+  totalXp: number
+  level: number
+}
+
+export type ApiLeaderboardMe = {
+  userId: string
+  rank: number
+  name: string
+  totalXp: number
+  level: number
+}
+
+export type ApiVolunteerStats = {
+  id: string
+  name: string
+  totalXp: number
+  currentLevel: number
+  approvedTasks: number
+  badges: {
+    id: string
+    name: string
+    description: string
+    icon: string
+    awardedAt: string
+  }[]
 }
 
 export type ApiArenaProgress = {
@@ -247,6 +292,11 @@ export const eventsApi = {
   listMine: () => request<EventsResponse>("/events/mine"),
   listVolunteers: (id: string) =>
     request<{ volunteers: ApiVolunteer[] }>(`/events/${id}/volunteers`),
+  assignVolunteer: (eventId: string, userId: string, assignment: string) =>
+    request<{ assignment: string }>(`/events/${eventId}/volunteers/${userId}/assignment`, {
+      method: "PATCH",
+      body: { assignment },
+    }),
   join: (id: string) =>
     request<EventResponse>(`/events/${id}/join`, { method: "POST" }),
   create: (input: {
@@ -282,18 +332,51 @@ export const tasksApi = {
   }) => request<TaskResponse>("/tasks", { method: "POST", body: input }),
 }
 
+export const chatApi = {
+  list: (eventId: string) =>
+    request<{ messages: ApiChatMessage[] }>(`/chat/${encodeURIComponent(eventId)}`),
+  send: (eventId: string, text: string) =>
+    request<{ message: ApiChatMessage }>(`/chat/${encodeURIComponent(eventId)}`, {
+      method: "POST",
+      body: { text },
+    }),
+}
+
 export const rewardsApi = {
+  listLeaderboard: () =>
+    request<{ leaderboard: ApiLeaderboardEntry[]; me: ApiLeaderboardMe | null }>(
+      "/rewards/leaderboard",
+    ),
+  getVolunteerStats: (userId: string) =>
+    request<{ volunteer: ApiVolunteerStats }>(
+      `/rewards/leaderboard/${encodeURIComponent(userId)}`,
+    ),
   getProgress: () =>
     request<{ progress: ApiArenaProgress }>("/rewards/progress"),
   listSubmissions: (eventId?: string) =>
     request<{ submissions: ApiTaskSubmission[] }>(
       eventId ? `/rewards/submissions?eventId=${encodeURIComponent(eventId)}` : "/rewards/submissions",
     ),
-  submitProof: (taskId: string, proof: ApiTaskSubmission["proof"]) =>
-    request<{ submission: ApiTaskSubmission }>(`/rewards/tasks/${taskId}/submit`, {
-      method: "POST",
-      body: { proof },
-    }),
+  listApprovedProofs: (
+    eventTitle: string,
+    eventId?: string,
+    articleId?: string,
+  ) =>
+    request<{ proofs: ApiApprovedProof[] }>(
+      `/rewards/approved?eventTitle=${encodeURIComponent(eventTitle)}${eventId ? `&eventId=${encodeURIComponent(eventId)}` : ""}${articleId ? `&articleId=${encodeURIComponent(articleId)}` : ""}`,
+    ),
+  submitProof: (
+    taskId: string,
+    proof: ApiTaskSubmission["proof"],
+    articleId?: string,
+  ) =>
+    request<{ submission: ApiTaskSubmission }>(
+      `/rewards/tasks/${taskId}/submit`,
+      {
+        method: "POST",
+        body: { proof, articleId },
+      },
+    ),
   reviewSubmission: (
     submissionId: string,
     status: "approved" | "rejected" | "resubmission_requested",
@@ -348,10 +431,15 @@ export type ApiArticle = {
 export const articlesApi = {
   list: () =>
     request<{ articles: ApiArticle[] }>("/articles", { auth: false }),
+  listMine: () =>
+    request<{ articles: ApiArticle[] }>("/articles/mine", { auth: false }),
   get: (id: string) =>
     request<{ article: ApiArticle }>(`/articles/${id}`, { auth: false }),
   create: (input: Partial<ApiArticle>) =>
-    request<{ article: ApiArticle }>("/articles", { method: "POST", body: input }),
+    request<{ article: ApiArticle }>("/articles", {
+      method: "POST",
+      body: input,
+    }),
   like: (id: string) =>
     request<{ success: boolean; likesCount: number }>(`/articles/${id}/like`, {
       method: "POST",

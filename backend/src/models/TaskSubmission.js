@@ -5,6 +5,7 @@ const taskSubmissionSchema = new Schema(
     taskId: { type: Schema.Types.ObjectId, ref: 'Task', required: true, index: true },
     eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true, index: true },
     volunteerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    articleId: { type: Schema.Types.ObjectId, ref: 'Article', index: true },
     status: {
       type: String,
       enum: ['submitted', 'approved', 'rejected', 'resubmission_requested'],
@@ -36,6 +37,7 @@ taskSubmissionSchema.methods.toPublicJSON = function toPublicJSON() {
     taskId: this.taskId.toString(),
     eventId: this.eventId.toString(),
     volunteerId: this.volunteerId.toString(),
+    articleId: this.articleId?.toString(),
     status: this.status,
     proof: this.proof,
     review: this.review,

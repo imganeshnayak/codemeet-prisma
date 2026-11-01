@@ -9,6 +9,7 @@ const articleRoutes = require('./routes/articles');
 const donationRoutes = require('./routes/donations');
 const taskRoutes = require('./routes/tasks');
 const rewardRoutes = require('./routes/rewards');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/donations', donationRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/rewards', rewardRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Not found.' });

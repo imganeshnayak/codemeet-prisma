@@ -89,11 +89,31 @@ const imgBadgeHighlight1 = `${assetPathPrefix}/4edc5.svg`
 
 export default function PixelAdventureMap({
   onLevelSix,
+  onLevelSelect,
   rewardClaimed,
+  unlockedLevels,
 }: {
   onLevelSix: () => void
+  onLevelSelect: (level: number) => void
   rewardClaimed: boolean
+  unlockedLevels: number[]
 }) {
+  const unlockedLevelPositions: Record<number, { left: number; top: number }> = {
+    1: { left: 80, top: 567 },
+    2: { left: 239, top: 515 },
+    3: { left: 94, top: 404 },
+    4: { left: 239, top: 321 },
+    5: { left: 136, top: 220 },
+  }
+
+  const lockedLevelPositions: Record<number, { left: number; top: number }> = {
+    2: { left: 239, top: 515 },
+    3: { left: 94, top: 404 },
+    4: { left: 239, top: 321 },
+    5: { left: 136, top: 220 },
+    6: { left: 238, top: 170 },
+  }
+
   return (
     <div
       className="relative h-[640px] w-[390px] bg-[#70c324]"
@@ -4695,7 +4715,7 @@ export default function PixelAdventureMap({
           aria-label={
             rewardClaimed ? "Level 6 reward claimed" : "Claim Level 6 reward"
           }
-          className="absolute left-[238px] top-[170px] h-[76px] w-[60px] cursor-pointer border-0 bg-transparent p-0"
+          className="pointer-events-auto absolute left-[238px] top-[170px] z-50 h-[76px] w-[60px] cursor-pointer border-0 bg-transparent p-0"
           data-node-id="139:29245"
           data-name="Current level"
           onClick={onLevelSix}
@@ -4941,6 +4961,41 @@ export default function PixelAdventureMap({
             6
           </p>
         </button>
+        {Object.entries(lockedLevelPositions).map(([level, position]) => {
+          const levelNumber = Number(level)
+          if (unlockedLevels.includes(levelNumber)) return null
+
+          return (
+            <div
+              aria-label={`Level ${levelNumber} locked. Earn a volunteering badge to unlock it.`}
+              className="pointer-events-auto absolute z-[60] h-[48px] w-[47px]"
+              key={level}
+              role="img"
+              style={{ left: position.left, top: position.top }}
+            >
+              <img
+                alt=""
+                className="absolute block inset-0 max-w-none size-full"
+                src={imgLockedLevel}
+              />
+            </div>
+          )
+        })}
+        {Object.entries(unlockedLevelPositions).map(([level, position]) => {
+          const levelNumber = Number(level)
+          if (!unlockedLevels.includes(levelNumber)) return null
+
+          return (
+            <button
+              aria-label={`View rewards for level ${levelNumber}`}
+              className="absolute z-[70] h-[76px] w-[60px] cursor-pointer border-0 bg-transparent p-0"
+              key={level}
+              onClick={() => onLevelSelect(levelNumber)}
+              style={{ left: position.left, top: position.top }}
+              type="button"
+            />
+          )
+        })}
       </div>
     </div>
   )

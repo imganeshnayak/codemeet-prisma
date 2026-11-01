@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { EventRole, EventStatus, formatEventDate, SevaEvent } from "./events"
-import { ApiDonationCampaign, donationsApi } from "./api"
+import { ApiApprovedProof, ApiArticle, ApiDonationCampaign, articlesApi, donationsApi, rewardsApi } from "./api"
 import NavigationIcon from "./NavigationIcon"
 
 type Destination = "home" | "tasks" | "my-events" | "memories" | "profile"
@@ -188,11 +188,30 @@ function EventCard({
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4">
           {event.role === "attending" ? (
-            <>
+            event.status === "Ongoing" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-white text-sm hover:bg-[#faf6ff] transition"
+                  onClick={(clickEvent) =>
+                    onDetails(event, clickEvent.currentTarget)
+                  }
+                  type="button"
+                >
+                  View details
+                </button>
+                <button
+                  className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] text-sm shadow-[2px_2px_0_#18151d] hover:bg-[#cbf018] transition"
+                  onClick={onProof}
+                  type="button"
+                >
+                  Upload proof
+                </button>
+              </div>
+            ) : (
               <button
-                className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-white text-sm"
+                className="font-outfit-bold h-11 w-full rounded-xl border-2 border-[#18151d] bg-white text-sm shadow-[2px_2px_0_#18151d] hover:bg-[#faf6ff] transition"
                 onClick={(clickEvent) =>
                   onDetails(event, clickEvent.currentTarget)
                 }
@@ -200,43 +219,24 @@ function EventCard({
               >
                 View details
               </button>
-              {event.status === "Ongoing" ? (
-                <button
-                  className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] text-sm"
-                  onClick={onProof}
-                  type="button"
-                >
-                  Upload proof
-                </button>
-              ) : (
-                <button
-                  className="font-outfit-bold h-11 rounded-xl bg-[#8c23df] text-sm text-white"
-                  onClick={(clickEvent) =>
-                    onDetails(event, clickEvent.currentTarget)
-                  }
-                  type="button"
-                >
-                  Event info
-                </button>
-              )}
-            </>
+            )
           ) : (
-            <>
+            <div className="grid grid-cols-2 gap-3">
               <button
-                className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] text-sm"
+                className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] text-sm shadow-[2px_2px_0_#18151d]"
                 onClick={() => onManage(event)}
                 type="button"
               >
                 Volunteers
               </button>
               <button
-                className="font-outfit-bold h-11 rounded-xl bg-[#8c23df] text-sm text-white"
+                className="font-outfit-bold h-11 rounded-xl bg-[#8c23df] text-sm text-white hover:bg-[#7b1dc5] transition"
                 onClick={() => onTasks(event)}
                 type="button"
               >
                 Assign tasks
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -355,9 +355,31 @@ export default function MyEvents({
   const [role, setRole] = useState<EventRole>("attending")
   const [detailEvent, setDetailEvent] = useState<SevaEvent | null>(null)
   const detailTrigger = useRef<HTMLButtonElement | null>(null)
+  const [articles, setArticles] = useState<ApiArticle[]>([])
+  const [selectedArticle, setSelectedArticle] = useState<ApiArticle | null>(null)
+  const [articleProofs, setArticleProofs] = useState<ApiApprovedProof[]>([])
 
   const roleEvents = events.filter((event) => event.role === role)
   const visibleEvents = roleEvents
+
+  useEffect(() => {
+    if (role !== "organizing") return
+    articlesApi.listMine().then(({ articles: next }) => setArticles(next)).catch(() => setArticles([]))
+  }, [role])
+
+  useEffect(() => {
+    if (!selectedArticle) {
+      setArticleProofs([])
+      return
+    }
+    rewardsApi.listApprovedProofs(
+      selectedArticle.relatedEvent?.title || selectedArticle.title,
+      undefined,
+      selectedArticle.id,
+    )
+      .then(({ proofs }) => setArticleProofs(proofs))
+      .catch(() => setArticleProofs([]))
+  }, [selectedArticle])
 
   function closeDetails() {
     setDetailEvent(null)
@@ -448,10 +470,7 @@ export default function MyEvents({
               <EventCard
                 event={event}
                 key={event.id}
-                onDetails={(selected, trigger) => {
-                  detailTrigger.current = trigger
-                  setDetailEvent(selected)
-                }}
+                onDetails={(selected) => onManage(selected)}
                 onManage={onManage}
                 onProof={onProof}
                 onTasks={onTasks}
@@ -482,7 +501,62 @@ export default function MyEvents({
             </button>
           </div>
         )}
+
+        {role === "organizing" && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between">
+              <h2 className="font-outfit-extrabold text-2xl">Articles</h2>
+              <span className="text-sm text-[#756c7b]">{articles.length} posted</span>
+            </div>
+            {articles.length === 0 ? (
+              <p className="mt-4 rounded-2xl border border-dashed border-[#b8a9c2] bg-white p-5 text-sm text-[#756c7b]">
+                Articles you post will appear here.
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {articles.map((article) => (
+                  <button
+                    className="overflow-hidden rounded-2xl border-2 border-[#18151d] bg-white text-left shadow-[3px_4px_0_#18151d]"
+                    key={article.id}
+                    onClick={() => setSelectedArticle(article)}
+                    type="button"
+                  >
+                    <img alt={article.alt} className="h-36 w-full object-cover" src={article.image} />
+                    <div className="p-4">
+                      <h3 className="font-outfit-extrabold text-lg">{article.title}</h3>
+                      <p className="mt-1 line-clamp-2 text-sm text-[#6d6572]">{article.description}</p>
+                      <p className="mt-3 text-xs font-bold text-[#7c1bd8]">Tap to view verification photos</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </section>
+
+      {selectedArticle && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+          <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-[#faf8ff] p-5 sm:rounded-3xl">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-outfit-extrabold text-xl">{selectedArticle.title}</h2>
+              <button aria-label="Close article" className="rounded-full border px-3 py-1" onClick={() => setSelectedArticle(null)} type="button">×</button>
+            </div>
+            <img alt={selectedArticle.alt} className="mt-4 max-h-64 w-full rounded-2xl object-cover" src={selectedArticle.image} />
+            <p className="mt-4 text-sm leading-relaxed text-[#595061]">{selectedArticle.description}</p>
+            <h3 className="mt-6 font-outfit-extrabold">Verification photos ({articleProofs.length})</h3>
+            {articleProofs.length === 0 ? (
+              <p className="mt-2 text-sm text-[#756c7b]">No volunteer verification photos submitted yet.</p>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {articleProofs.map((proof) => (
+                  <img alt={`Verification by ${proof.volunteerName || "volunteer"}`} className="aspect-square w-full rounded-xl object-cover" key={proof.id} src={proof.proof.imageUrl} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <nav
         aria-label="Main navigation"

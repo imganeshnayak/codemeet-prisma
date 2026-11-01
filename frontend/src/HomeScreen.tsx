@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react"
-import { articlesApi } from "./api"
+import { ApiApprovedProof, articlesApi, rewardsApi } from "./api"
 import NavigationIcon from "./NavigationIcon"
 
 type Destination =
@@ -764,12 +764,14 @@ function ArticleDetailModal({
   onClose,
   onNavigate,
   onVerify,
+  onViewProof,
   onNotice,
 }: {
   article: HomeArticle
   onClose: () => void
   onNavigate: (destination: Destination) => void
-  onVerify: () => void
+  onVerify: (articleId?: string) => void
+  onViewProof: (eventTitle?: string) => void
   onNotice: (message: string) => void
 }) {
   const [following, setFollowing] = useState(false)
@@ -778,6 +780,8 @@ function ArticleDetailModal({
   const [saved, setSaved] = useState(false)
   const [newComment, setNewComment] = useState("")
   const [comments, setComments] = useState(article.comments || [])
+  const [proofs, setProofs] = useState<ApiApprovedProof[]>([])
+  const [proofsLoading, setProofsLoading] = useState(false)
 
   useEffect(() => {
     function closeOnEscape(e: KeyboardEvent) {
@@ -790,6 +794,15 @@ function ArticleDetailModal({
       document.body.style.overflow = ""
     }
   }, [onClose])
+
+  useEffect(() => {
+    const eventTitle = article.relatedEvent?.title
+    setProofsLoading(true)
+    rewardsApi.listApprovedProofs(eventTitle || article.title, undefined, article.id)
+      .then(({ proofs: next }) => setProofs(next))
+      .catch(() => setProofs([]))
+      .finally(() => setProofsLoading(false))
+  }, [article.geoTag, article.relatedEvent?.title, article.title])
 
   function handleShare() {
     if (navigator.share) {
@@ -1034,7 +1047,7 @@ function ArticleDetailModal({
                 className="font-outfit-bold flex items-center gap-1.5 rounded-xl border-2 border-[#18151d] bg-white px-3 py-1.5 text-xs text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:-translate-y-0.5"
                 onClick={() => {
                   onClose()
-                  onVerify()
+                  onViewProof(article.relatedEvent?.title || article.title)
                 }}
                 type="button"
               >
@@ -1043,6 +1056,42 @@ function ArticleDetailModal({
               </button>
             </div>
           )}
+
+          <section className="mt-6" aria-label="Verification photos">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-outfit-extrabold flex items-center gap-2 text-base text-[#18151d]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#d8f23c] text-[#18151d]">
+                    <Icon className="h-4 w-4" name="image" />
+                  </span>
+                  Verification Photos
+                </h3>
+                <span className="text-xs text-[#6e6378]">{proofs.length} submitted</span>
+              </div>
+              {proofsLoading ? (
+                <p className="mt-3 rounded-2xl border border-[#ded5e8] bg-white p-4 text-sm text-[#6e6378]">
+                  Loading submitted photos...
+                </p>
+              ) : proofs.length === 0 ? (
+                <p className="mt-3 rounded-2xl border border-dashed border-[#ded5e8] bg-white p-4 text-sm text-[#6e6378]">
+                  No verification photos have been submitted for this article yet.
+                </p>
+              ) : (
+                <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                  {proofs.map((proof) => (
+                    <figure className="overflow-hidden rounded-2xl border-2 border-[#18151d] bg-white shadow-[2px_2px_0_#18151d]" key={proof.id}>
+                      <img
+                        alt={`Verification photo by ${proof.volunteerName || "volunteer"}`}
+                        className="aspect-square w-full object-cover"
+                        src={proof.proof.imageUrl}
+                      />
+                      <figcaption className="truncate px-2 py-2 text-[11px] text-[#6e6378]">
+                        {proof.status === "submitted" ? "Awaiting approval" : "Verified"} · {proof.volunteerName || "Volunteer"}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              )}
+          </section>
 
           {/* Connected Action: Upcoming Opportunity / Bridge */}
           {article.relatedEvent && (
@@ -1176,10 +1225,12 @@ function ArticleDetailModal({
 export default function HomeScreen({
   onNavigate,
   onVerify,
+  onViewProof,
   onJoinEvent,
 }: {
   onNavigate: (destination: Destination) => void
-  onVerify: () => void
+  onVerify: (articleId?: string) => void
+  onViewProof: (eventTitle?: string) => void
   onJoinEvent?: (event: NonNullable<HomeArticle["relatedEvent"]>) => void
 }) {
   const [articles, setArticles] = useState<HomeArticle[]>([])
@@ -1238,32 +1289,9 @@ export default function HomeScreen({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [selectedArticle, showArticleForm, articles.length, changingArticle])
 
-  const article = articles[articleIndex]
-  if (loadingArticles) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center bg-[#faf8ff] p-6 text-center text-[#6d6572]">
-        Loading community stories...
-      </main>
-    )
-  }
-  if (!article) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center bg-[#faf8ff] p-6 text-center text-[#6d6572]">
-        <div>
-          <p>{articleError || "No community stories have been published yet."}</p>
-          <button
-            className="mt-4 rounded-xl bg-[#18151d] px-4 py-2 font-outfit-bold text-sm text-white"
-            onClick={() => window.location.reload()}
-            type="button"
-          >
-            Try again
-          </button>
-        </div>
-      </main>
-    )
-  }
-  const nextArticle = articles[(articleIndex + 1) % articles.length]
-  const followingArticle = articles[(articleIndex + 2) % articles.length]
+  const article = articles[articleIndex] || null
+  const nextArticle = articles.length > 1 ? articles[(articleIndex + 1) % articles.length] : null
+  const followingArticle = articles.length > 2 ? articles[(articleIndex + 2) % articles.length] : null
 
   function showNotice(message: string) {
     setNotice(message)
@@ -1306,27 +1334,17 @@ export default function HomeScreen({
           <h1 className="font-outfit-extrabold text-2xl leading-none tracking-tight sm:text-3xl">
             Seva<span className="text-[#6f19d6]">Sathi</span>
           </h1>
-          <div className="flex items-center gap-1.5 pt-0.5">
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                isDbConnected ? "bg-[#34c759] shadow-[0_0_8px_#34c759]" : "bg-[#f59e0b]"
-              }`}
-            />
-            <p className="font-outfit-semibold text-xs text-[#6d6572]">
-              {isDbConnected ? "Live Database Connected" : "Community Impact Feed"}
-            </p>
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            aria-label="Donate feeding tickets"
+            aria-label="Open arena"
             className="flex items-center gap-1.5 rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] px-3 py-2 font-outfit-extrabold text-xs text-[#18151d] shadow-[2px_3px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#18151d]"
-            onClick={() => onNavigate("donate-feed")}
+            onClick={() => onNavigate("arena")}
             type="button"
           >
-            <span className="text-sm">🍲</span>
-            <span>Feed Tickets</span>
+            <span className="text-sm">🏆</span>
+            <span>Arena</span>
           </button>
           <button
             aria-label="View notifications"
@@ -1341,56 +1359,65 @@ export default function HomeScreen({
 
       {/* Main Card Viewport */}
       <section className="relative z-10 mx-auto flex max-w-md flex-col px-4 pt-2 pb-28 sm:max-w-lg sm:px-6">
-        {/* Navigation Indicator & Arrows */}
-        <div className="mb-2 flex items-center justify-between px-2 text-xs font-outfit-semibold text-[#6d6572]">
-          <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#6f19d6]" />
-            Story {articleIndex + 1} of {articles.length}
-          </span>
-          <div className="flex items-center gap-1.5">
+        {loadingArticles ? (
+          <div className="flex h-80 flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-[#18151d]/20 bg-white/70 p-6 text-center text-[#6d6572]">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#8c23df] border-t-transparent" />
+            <p className="mt-3 font-outfit-semibold text-sm">Loading community stories...</p>
+          </div>
+        ) : !article ? (
+          <div className="flex flex-col items-center justify-center rounded-[28px] border-2 border-[#18151d] bg-white p-8 text-center shadow-[4px_5px_0_#18151d]">
+            <span className="text-5xl">🌱</span>
+            <h3 className="font-outfit-extrabold mt-3 text-lg text-[#18151d]">
+              No Community Stories Yet
+            </h3>
+            <p className="font-outfit-regular mt-1 text-sm text-[#6d6572]">
+              {articleError || "Be the first to share an impact story, tree plantation drive, or volunteer activity!"}
+            </p>
             <button
-              aria-label="Previous story"
-              className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#18151d] bg-white text-[#18151d] shadow-[1.5px_1.5px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-              onClick={showPreviousArticle}
-              title="Previous story (Scroll Down / Arrow Up)"
+              className="font-outfit-bold mt-5 flex items-center gap-2 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-5 py-2.5 text-sm shadow-[2px_3px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
+              onClick={() => setShowArticleForm(true)}
               type="button"
             >
-              <Icon className="h-3.5 w-3.5" name="chevron-up" />
-            </button>
-            <button
-              aria-label="Next story"
-              className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#18151d] bg-white text-[#18151d] shadow-[1.5px_1.5px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-              onClick={showNextArticle}
-              title="Next story (Scroll Up / Arrow Down)"
-              type="button"
-            >
-              <Icon className="h-3.5 w-3.5" name="chevron-down" />
+              <Icon className="h-4 w-4" name="plus" />
+              Publish First Story
             </button>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Navigation Indicator & Arrows */}
+            <div className="mb-2 flex items-center justify-between px-2 text-xs font-outfit-semibold text-[#6d6572]">
+              <span className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#6f19d6]" />
+                Story {articleIndex + 1} of {articles.length}
+              </span>
+            </div>
 
-        <div className="relative mx-auto w-full">
-          {/* Card Stack Shadows */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-5 bottom-[-12px] top-4 rotate-[4deg] overflow-hidden rounded-[28px] border-2 border-white bg-white opacity-50 shadow-[0_10px_24px_rgba(105,48,150,0.12)]"
-          >
-            <img
-              alt=""
-              className="h-full w-full object-cover opacity-35"
-              src={followingArticle.image}
-            />
-          </div>
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-3 bottom-[-6px] top-2 rotate-[2deg] overflow-hidden rounded-[28px] border-2 border-white bg-white opacity-75 shadow-[0_10px_24px_rgba(105,48,150,0.15)]"
-          >
-            <img
-              alt=""
-              className="h-full w-full object-cover opacity-30"
-              src={nextArticle.image}
-            />
-          </div>
+            <div className="relative mx-auto w-full">
+              {/* Card Stack Shadows */}
+              {followingArticle && (
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-x-5 bottom-[-12px] top-4 rotate-[4deg] overflow-hidden rounded-[28px] border-2 border-white bg-white opacity-50 shadow-[0_10px_24px_rgba(105,48,150,0.12)]"
+                >
+                  <img
+                    alt=""
+                    className="h-full w-full object-cover opacity-35"
+                    src={followingArticle.image}
+                  />
+                </div>
+              )}
+              {nextArticle && (
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-x-3 bottom-[-6px] top-2 rotate-[2deg] overflow-hidden rounded-[28px] border-2 border-white bg-white opacity-75 shadow-[0_10px_24px_rgba(105,48,150,0.15)]"
+                >
+                  <img
+                    alt=""
+                    className="h-full w-full object-cover opacity-30"
+                    src={nextArticle.image}
+                  />
+                </div>
+              )}
 
           {/* Active Article Card */}
           <article
@@ -1529,7 +1556,7 @@ export default function HomeScreen({
                   className="font-outfit-semibold group flex flex-col items-center gap-2 text-sm"
                   onClick={(event) => {
                     event.stopPropagation()
-                    onVerify()
+                    onVerify(article.id)
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
                   type="button"
@@ -1572,6 +1599,8 @@ export default function HomeScreen({
             </div>
           </article>
         </div>
+      </>
+    )}
 
         {/* Floating Add Article Button */}
         <button
@@ -1630,6 +1659,7 @@ export default function HomeScreen({
           onNavigate={onNavigate}
           onNotice={showNotice}
           onVerify={onVerify}
+          onViewProof={onViewProof}
         />
       )}
 

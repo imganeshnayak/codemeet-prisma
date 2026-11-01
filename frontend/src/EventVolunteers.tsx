@@ -215,7 +215,7 @@ export default function EventVolunteers({ event, onBack, onAssignments, onPhotos
               Open community messages
             </button>
           )}
-          <div className={showNavigationTabs && !readOnly ? "content-stretch flex flex-col gap-[9px] items-start relative shrink-0 w-full" : "hidden"} data-node-id="174:12014" data-name="Event navigation">
+          <div className={showNavigationTabs ? "content-stretch flex flex-col gap-[9px] items-start relative shrink-0 w-full" : "hidden"} data-node-id="174:12014" data-name="Event navigation">
             <div className="content-stretch flex gap-[9px] items-start relative shrink-0 w-full">
               <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch cursor-pointer drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12015" data-name="Event tab" onClick={onVolunteers} role="button" tabIndex={0}>
                 <div className="relative shrink-0 size-[28px]" data-node-id="174:12502" data-name="users">
@@ -227,7 +227,7 @@ export default function EventVolunteers({ event, onBack, onAssignments, onPhotos
                   </p>
                 </div>
               </div>
-              <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] cursor-pointer flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12020" data-name="Event tab" onClick={onAssignments} role="button" tabIndex={0}>
+              <div className={readOnly ? "hidden" : "bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] cursor-pointer flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]"} data-node-id="174:12020" data-name="Event tab" onClick={onAssignments} role="button" tabIndex={0}>
                 <div className="relative shrink-0 size-[28px]" data-node-id="174:12505" data-name="clipboard-check">
                   <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgClipboardCheck} />
                 </div>

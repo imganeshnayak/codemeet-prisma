@@ -1,3 +1,13 @@
+import { useEffect, useState } from "react"
+import {
+  ApiError,
+  ApiLeaderboardEntry,
+  ApiLeaderboardMe,
+  ApiVolunteerStats,
+  getStoredToken,
+  rewardsApi,
+} from "./api"
+
 const assetPathPrefix = "/assets/arena-leaderboard"
 const imgLeaf = `${assetPathPrefix}/d2142.svg`
 const imgStar = `${assetPathPrefix}/47c95.svg`
@@ -41,7 +51,93 @@ const imgSmoothIllustratedCharacter4 = `${assetPathPrefix}/1eca8.svg`
 const imgStar1 = `${assetPathPrefix}/9b2c1.svg`
 const imgFireExtinguisher = `${assetPathPrefix}/270ea.svg`
 
+const ROW_STYLES = [
+  { bg: "#ffdc65", border: "#f4b429" },
+  { bg: "#dad6e6", border: "#bdb6d0" },
+  { bg: "#ffd7ae", border: "#f0af77" },
+  { bg: "#fff1d8", border: "#e6d4b8" },
+  { bg: "#fff1d8", border: "#e6d4b8" },
+  { bg: "#ffd7ae", border: "#f0af77" },
+  { bg: "#ffd7ae", border: "#f0af77" },
+]
+
+const DEFAULT_ROW_STYLE = { bg: "#fff1d8", border: "#e6d4b8" }
+
+const formatXp = (xp: number) => `${xp.toLocaleString("en-US")} XP`
+
 export default function PixelLeaderboard() {
+  const [entries, setEntries] = useState<ApiLeaderboardEntry[]>([])
+  const [me, setMe] = useState<ApiLeaderboardMe | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [detail, setDetail] = useState<ApiVolunteerStats | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState("")
+
+  useEffect(() => {
+    if (!getStoredToken()) return
+    let active = true
+
+    async function loadBoard() {
+      try {
+        const { leaderboard, me: mine } = await rewardsApi.listLeaderboard()
+        if (!active) return
+        setEntries(leaderboard)
+        setMe(mine)
+      } catch {
+        // Keep the empty board on failures; the retry interval reloads it.
+      }
+    }
+
+    loadBoard()
+    const interval = window.setInterval(loadBoard, 30000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedId) return
+    let active = true
+    setDetail(null)
+    setDetailError("")
+    setDetailLoading(true)
+
+    rewardsApi
+      .getVolunteerStats(selectedId)
+      .then((data) => {
+        if (active) setDetail(data.volunteer)
+      })
+      .catch((error) => {
+        if (!active) return
+        setDetailError(
+          error instanceof ApiError
+            ? error.message
+            : "Could not load volunteer details.",
+        )
+      })
+      .finally(() => {
+        if (active) setDetailLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [selectedId])
+
+  function openVolunteer(userId: string) {
+    if (userId) setSelectedId(userId)
+  }
+
+  const entryForRank = (rank: number) =>
+    entries.find((entry) => entry.rank === rank) ?? null
+
+  const nameForRank = (rank: number) => entryForRank(rank)?.name ?? "—"
+
+  const xpForRank = (rank: number) => {
+    const entry = entryForRank(rank)
+    return entry ? formatXp(entry.totalXp) : "—"
+  }
   return (
     <div
       className="relative flex h-[928px] w-[390px] flex-col items-start bg-[#2d155b]"
@@ -107,7 +203,7 @@ export default function PixelLeaderboard() {
               className="[word-break:break-word] font-['Roboto_Condensed:Bold'] font-bold leading-[normal] relative shrink-0 text-[#ffd640] text-[13px] whitespace-nowrap"
               data-node-id="139:16454"
             >
-              4,850 XP
+              {me ? formatXp(me.totalXp) : "0 XP"}
             </p>
           </div>
           <div
@@ -8345,12 +8441,17 @@ export default function PixelLeaderboard() {
             data-node-id="139:14077"
             data-name="Edge shine"
           />
-          <p
-            className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[1.1] left-[41px] text-[#fff9de] text-[34px] text-center top-[102px] w-[82px]"
+          <button
+            className="-translate-x-1/2 [word-break:break-word] absolute cursor-pointer font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[1.1] left-[41px] text-[#fff9de] text-[34px] text-center top-[102px] w-[82px]"
             data-node-id="139:14076"
+            onClick={() => {
+              const entry = entryForRank(2)
+              if (entry) openVolunteer(entry.userId)
+            }}
+            type="button"
           >
             2
-          </p>
+          </button>
           <div
             className="[word-break:break-word] absolute bg-[#342260] font-['Roboto_Condensed:ExtraBold'] font-extrabold h-[42px] left-[3px] overflow-clip rounded-[3px] text-center text-white top-[130px] w-[76px]"
             data-node-id="139:14073"
@@ -8360,13 +8461,13 @@ export default function PixelLeaderboard() {
               className="-translate-x-1/2 absolute leading-[1.05] left-[38px] text-[15px] top-[3px] w-[76px]"
               data-node-id="139:14075"
             >
-              Ananya S
+              {nameForRank(2)}
             </p>
             <p
               className="-translate-x-1/2 absolute leading-none left-[38px] text-[14px] top-[21px] w-[76px]"
               data-node-id="139:14074"
             >
-              4,320 XP
+              {xpForRank(2)}
             </p>
           </div>
         </div>
@@ -8464,12 +8565,17 @@ export default function PixelLeaderboard() {
             data-node-id="139:13863"
             data-name="Edge shine"
           />
-          <p
-            className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[1.1] left-[43.5px] text-[#fff467] text-[41px] text-center top-[102px] w-[87px]"
+          <button
+            className="-translate-x-1/2 [word-break:break-word] absolute cursor-pointer font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[1.1] left-[43.5px] text-[#fff467] text-[41px] text-center top-[102px] w-[87px]"
             data-node-id="139:13862"
+            onClick={() => {
+              const entry = entryForRank(1)
+              if (entry) openVolunteer(entry.userId)
+            }}
+            type="button"
           >
             1
-          </p>
+          </button>
           <div
             className="[word-break:break-word] absolute bg-[#3b245c] font-['Roboto_Condensed:ExtraBold'] font-extrabold h-[42px] left-[3px] overflow-clip rounded-[3px] text-[#ffe146] text-center top-[157px] w-[81px]"
             data-node-id="139:13859"
@@ -8479,13 +8585,13 @@ export default function PixelLeaderboard() {
               className="-translate-x-1/2 absolute leading-[1.05] left-[40.5px] text-[15px] top-[3px] w-[81px]"
               data-node-id="139:13861"
             >
-              Rahul K
+              {nameForRank(1)}
             </p>
             <p
               className="-translate-x-1/2 absolute leading-none left-[40.5px] text-[14px] top-[21px] w-[81px]"
               data-node-id="139:13860"
             >
-              4,850 XP
+              {xpForRank(1)}
             </p>
           </div>
         </div>
@@ -8570,12 +8676,17 @@ export default function PixelLeaderboard() {
             data-node-id="139:13648"
             data-name="Edge shine"
           />
-          <p
-            className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[1.1] left-[40px] text-[#fff9de] text-[34px] text-center top-[102px] w-[80px]"
+          <button
+            className="-translate-x-1/2 [word-break:break-word] absolute cursor-pointer font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[1.1] left-[40px] text-[#fff9de] text-[34px] text-center top-[102px] w-[80px]"
             data-node-id="139:13647"
+            onClick={() => {
+              const entry = entryForRank(3)
+              if (entry) openVolunteer(entry.userId)
+            }}
+            type="button"
           >
             3
-          </p>
+          </button>
           <div
             className="[word-break:break-word] absolute bg-[#342260] font-['Roboto_Condensed:ExtraBold'] font-extrabold h-[42px] left-[3px] overflow-clip rounded-[3px] text-center text-white top-[123px] w-[74px]"
             data-node-id="139:13644"
@@ -8585,13 +8696,13 @@ export default function PixelLeaderboard() {
               className="-translate-x-1/2 absolute leading-[1.05] left-[37px] text-[15px] top-[3px] w-[74px]"
               data-node-id="139:13646"
             >
-              Vivek M
+              {nameForRank(3)}
             </p>
             <p
               className="-translate-x-1/2 absolute leading-none left-[37px] text-[14px] top-[21px] w-[74px]"
               data-node-id="139:13645"
             >
-              4,100 XP
+              {xpForRank(3)}
             </p>
           </div>
         </div>
@@ -9766,196 +9877,49 @@ export default function PixelLeaderboard() {
               XP
             </p>
           </div>
-          <div
-            className="bg-[#ffdc65] border-[#f4b429] border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
-            data-node-id="139:15920"
-            data-name="Volunteer row"
-          >
-            <div
-              className="h-[30px] relative shrink-0 w-[32px]"
-              data-node-id="139:15921"
-              data-name="Rank"
-            >
-              <p
-                className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]"
-                data-node-id="139:15923"
-              >
-                1
-              </p>
-            </div>
-            <p
-              className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
-              data-node-id="139:16016"
-            >
-              Rahul K
+          {entries.length ? (
+            entries.map((entry) => {
+              const style = ROW_STYLES[entry.rank - 1] ?? DEFAULT_ROW_STYLE
+              return (
+                <div
+                  className="border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
+                  key={entry.userId}
+                  data-name="Volunteer row"
+                  style={{
+                    backgroundColor: style.bg,
+                    borderColor: style.border,
+                  }}
+                >
+                  <div
+                    className="h-[30px] relative shrink-0 w-[32px]"
+                    data-name="Rank"
+                  >
+                    <button
+                      className="absolute left-0 top-0 cursor-pointer h-[30px] w-[32px]"
+                      onClick={() => openVolunteer(entry.userId)}
+                      type="button"
+                    >
+                      <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">
+                        {entry.rank}
+                      </p>
+                    </button>
+                  </div>
+                  <p className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]">
+                    {entry.name}
+                  </p>
+                  <p className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]">
+                    {formatXp(entry.totalXp)}
+                  </p>
+                </div>
+              )
+            })
+          ) : (
+            <p className="font-['Roboto_Condensed:Bold'] font-bold px-[15px] py-[10px] text-[#9b85cc] text-[13px] w-full">
+              {me
+                ? "No volunteers on the leaderboard yet."
+                : "Sign in to see rankings."}
             </p>
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]"
-              data-node-id="139:16017"
-            >
-              4,850 XP
-            </p>
-          </div>
-          <div
-            className="bg-[#dad6e6] border-[#bdb6d0] border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
-            data-node-id="139:16018"
-            data-name="Volunteer row"
-          >
-            <div
-              className="h-[30px] relative shrink-0 w-[32px]"
-              data-node-id="139:16019"
-              data-name="Rank"
-            >
-              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">2</p>
-            </div>
-            <p
-              className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
-              data-node-id="139:16132"
-            >
-              Ananya S
-            </p>
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]"
-              data-node-id="139:16133"
-            >
-              4,320 XP
-            </p>
-          </div>
-          <div
-            className="bg-[#ffd7ae] border-[#f0af77] border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
-            data-node-id="139:16134"
-            data-name="Volunteer row"
-          >
-            <div
-              className="h-[30px] relative shrink-0 w-[32px]"
-              data-node-id="139:16135"
-              data-name="Rank"
-            >
-              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">3</p>
-            </div>
-            <p
-              className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
-              data-node-id="139:16231"
-            >
-              Vivek M
-            </p>
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]"
-              data-node-id="139:16232"
-            >
-              4,100 XP
-            </p>
-          </div>
-          <div
-            className="bg-[#fff1d8] border-[#e6d4b8] border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
-            data-node-id="139:16233"
-            data-name="Volunteer row"
-          >
-            <div
-              className="h-[30px] relative shrink-0 w-[32px]"
-              data-node-id="139:16234"
-              data-name="Rank"
-            >
-              <p
-                className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]"
-                data-node-id="139:16235"
-              >
-                4
-              </p>
-            </div>
-            <p
-              className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
-              data-node-id="139:16326"
-            >
-              Disha K
-            </p>
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]"
-              data-node-id="139:16327"
-            >
-              3,690 XP
-            </p>
-          </div>
-          <div
-            className="bg-[#fff1d8] border-[#e6d4b8] border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
-            data-node-id="139:16328"
-            data-name="Volunteer row"
-          >
-            <div
-              className="h-[30px] relative shrink-0 w-[32px]"
-              data-node-id="139:16329"
-              data-name="Rank"
-            >
-              <p
-                className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]"
-                data-node-id="139:16330"
-              >
-                5
-              </p>
-            </div>
-            <p
-              className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
-              data-node-id="139:16439"
-            >
-              Megha R
-            </p>
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]"
-              data-node-id="139:16440"
-            >
-              3,420 XP
-            </p>
-          </div>
-          <div
-            className="bg-[#ffd7ae] border-[#f0af77] border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
-            data-node-id="139:16513"
-            data-name="Volunteer row · Arjun P"
-          >
-            <div
-              className="h-[30px] relative shrink-0 w-[32px]"
-              data-node-id="139:16514"
-              data-name="Rank"
-            >
-              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">6</p>
-            </div>
-            <p
-              className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
-              data-node-id="139:16610"
-            >
-              Arjun P
-            </p>
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]"
-              data-node-id="139:16611"
-            >
-              3,210 XP
-            </p>
-          </div>
-          <div
-            className="bg-[#ffd7ae] border-[#f0af77] border-[0.8px] border-solid content-stretch flex gap-[9px] h-[42px] items-center overflow-clip pl-[16px] pr-[12px] relative rounded-[3px] shrink-0 w-full"
-            data-node-id="139:16612"
-            data-name="Volunteer row · Nithin S"
-          >
-            <div
-              className="h-[30px] relative shrink-0 w-[32px]"
-              data-node-id="139:16613"
-              data-name="Rank"
-            >
-              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">7</p>
-            </div>
-            <p
-              className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
-              data-node-id="139:16709"
-            >
-              Nithin S
-            </p>
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#171127] text-[17px] text-right w-[88px]"
-              data-node-id="139:16710"
-            >
-              2,980 XP
-            </p>
-          </div>
+          )}
         </div>
       </div>
       <div
@@ -9973,12 +9937,18 @@ export default function PixelLeaderboard() {
             data-node-id="139:16482"
             data-name="Rank badge"
           >
-            <p
-              className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[16px] text-white whitespace-nowrap"
+            <button
+              className="cursor-pointer flex h-full items-center justify-center w-full"
               data-node-id="139:16483"
+              onClick={() => {
+                if (me) openVolunteer(me.userId)
+              }}
+              type="button"
             >
-              #4
-            </p>
+              <p className="font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] text-[16px] text-white whitespace-nowrap">
+                {me ? `#${me.rank}` : "#—"}
+              </p>
+            </button>
           </div>
           <div
             className="[word-break:break-word] content-stretch flex flex-col gap-[2px] items-start leading-[normal] relative shrink-0 whitespace-nowrap"
@@ -9995,7 +9965,7 @@ export default function PixelLeaderboard() {
               className="font-['Roboto_Condensed:ExtraBold'] font-extrabold relative shrink-0 text-[16px] text-white"
               data-node-id="139:16486"
             >
-              Disha K
+              {me ? me.name : "Sign in"}
             </p>
           </div>
         </div>
@@ -10019,7 +9989,7 @@ export default function PixelLeaderboard() {
             className="[word-break:break-word] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] relative shrink-0 text-[#ffd640] text-[16px] whitespace-nowrap"
             data-node-id="139:16489"
           >
-            3,690 XP
+            {me ? formatXp(me.totalXp) : "0 XP"}
           </p>
         </div>
       </div>
@@ -10063,6 +10033,97 @@ export default function PixelLeaderboard() {
           </div>
         </div>
       </div>
+      {selectedId && (
+        <div
+          className="absolute inset-0 z-20 bg-[#0d0619]/70"
+          onClick={() => setSelectedId(null)}
+          role="presentation"
+        >
+          <div
+            className="absolute left-1/2 top-[220px] -translate-x-1/2 w-[330px] rounded-[14px] border-2 border-[#5b3ac2] bg-[#2d155b] p-4 text-white shadow-[0_0_0_4px_rgba(91,58,194,0.3)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="font-['Roboto_Condensed:Bold'] font-bold text-[12px] tracking-[1px] text-[#9b85cc]">
+                VOLUNTEER STATS
+              </p>
+              <button
+                aria-label="Close volunteer details"
+                className="cursor-pointer rounded-full bg-[#3b2470] px-2 py-1 font-['Roboto_Condensed:Bold'] font-bold text-[11px] text-white"
+                onClick={() => setSelectedId(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+            {detailLoading && (
+              <p className="font-['Roboto_Condensed:Bold'] font-bold text-[13px] text-[#9b85cc]">
+                Loading details...
+              </p>
+            )}
+            {!detailLoading && detailError && (
+              <p
+                className="font-['Roboto_Condensed:Bold'] font-bold text-[13px] text-red-300"
+                role="alert"
+              >
+                {detailError}
+              </p>
+            )}
+            {!detailLoading && !detailError && detail && (
+              <>
+                <p className="font-['Roboto_Condensed:ExtraBold'] font-extrabold text-[20px]">
+                  {detail.name}
+                </p>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-[8px] bg-[#1e0d45] p-2">
+                    <p className="font-['Roboto_Condensed:ExtraBold'] font-extrabold text-[16px] text-[#ffd640]">
+                      {detail.currentLevel}
+                    </p>
+                    <p className="font-['Roboto_Condensed:Bold'] font-bold text-[10px] text-[#9b85cc]">
+                      LEVEL
+                    </p>
+                  </div>
+                  <div className="rounded-[8px] bg-[#1e0d45] p-2">
+                    <p className="font-['Roboto_Condensed:ExtraBold'] font-extrabold text-[16px] text-[#ffd640]">
+                      {detail.totalXp.toLocaleString("en-US")}
+                    </p>
+                    <p className="font-['Roboto_Condensed:Bold'] font-bold text-[10px] text-[#9b85cc]">
+                      TOTAL XP
+                    </p>
+                  </div>
+                  <div className="rounded-[8px] bg-[#1e0d45] p-2">
+                    <p className="font-['Roboto_Condensed:ExtraBold'] font-extrabold text-[16px] text-[#ffd640]">
+                      {detail.approvedTasks}
+                    </p>
+                    <p className="font-['Roboto_Condensed:Bold'] font-bold text-[10px] text-[#9b85cc]">
+                      TASKS
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 font-['Roboto_Condensed:Bold'] font-bold text-[11px] tracking-[1px] text-[#9b85cc]">
+                  BADGES
+                </p>
+                {detail.badges.length ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {detail.badges.map((badge) => (
+                      <span
+                        className="rounded-full bg-[#3b2470] px-2 py-1 font-['Roboto_Condensed:Bold'] font-bold text-[11px] text-white"
+                        key={badge.id}
+                      >
+                        {badge.icon} {badge.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="font-['Roboto_Condensed:Bold'] font-bold text-[12px] text-[#9b85cc]">
+                    No badges yet.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

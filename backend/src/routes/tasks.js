@@ -98,6 +98,9 @@ router.post('/', async (req, res) => {
     let event = null;
     if (body.eventId && mongoose.Types.ObjectId.isValid(body.eventId)) {
       event = await Event.findById(body.eventId);
+      if (event && !event.organizerId.equals(req.user._id)) {
+        return res.status(403).json({ message: 'Only the event organizer can assign tasks.' });
+      }
     }
 
     const task = await Task.create({

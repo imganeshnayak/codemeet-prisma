@@ -1,6 +1,6 @@
 const express = require('express');
 const Article = require('../models/Article');
-const { optionalAuth } = require('../middleware/auth');
+const { optionalAuth, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -8,6 +8,15 @@ const router = express.Router();
 router.get('/', async (req, res, next) => {
   try {
     const articles = await Article.find().sort({ createdAt: -1 }).exec();
+    return res.json({ articles: articles.map((a) => a.toPublicJSON()) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/mine', requireAuth, async (req, res, next) => {
+  try {
+    const articles = await Article.find({ authorId: req.user._id }).sort({ createdAt: -1 }).exec();
     return res.json({ articles: articles.map((a) => a.toPublicJSON()) });
   } catch (error) {
     return next(error);

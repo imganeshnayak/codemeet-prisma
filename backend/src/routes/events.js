@@ -161,6 +161,32 @@ router.get('/:id/volunteers', async (req, res) => {
   }
 });
 
+router.patch('/:id/volunteers/:userId/assignment', async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id).select('organizerId');
+    if (!event) return res.status(404).json({ message: 'Event not found.' });
+    if (!event.organizerId.equals(req.user._id)) {
+      return res.status(403).json({ message: 'Only the event organizer can assign tasks.' });
+    }
+
+    const assignment = typeof req.body?.assignment === 'string'
+      ? req.body.assignment.trim()
+      : '';
+    if (!assignment) return res.status(400).json({ message: 'Assignment is required.' });
+
+    const participation = await EventParticipation.findOneAndUpdate(
+      { eventId: event._id, userId: req.params.userId },
+      { assignment },
+      { new: true },
+    );
+    if (!participation) return res.status(404).json({ message: 'Volunteer is not part of this event.' });
+    return res.json({ assignment: participation.assignment });
+  } catch (err) {
+    console.error('Failed to assign volunteer task:', err);
+    return res.status(500).json({ message: 'Failed to assign volunteer task.' });
+  }
+});
+
 // POST /api/events - Create a new volunteer event
 router.post('/', async (req, res) => {
   try {

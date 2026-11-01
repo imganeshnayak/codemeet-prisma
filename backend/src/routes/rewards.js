@@ -5,6 +5,7 @@ const Task = require('../models/Task');
 const TaskSubmission = require('../models/TaskSubmission');
 const UserBadge = require('../models/UserBadge');
 const ArenaProgress = require('../models/ArenaProgress');
+const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -15,6 +16,10 @@ function badgeForCount(count) {
   if (count >= 5) return { id: 'impact-builder', name: 'Impact Builder', description: 'Completed 5 approved tasks.', icon: '🌟' };
   if (count >= 3) return { id: 'community-helper', name: 'Community Helper', description: 'Completed 3 approved tasks.', icon: '🤝' };
   return { id: 'first-step', name: 'First Step', description: 'Completed your first approved task.', icon: '🌱' };
+}
+
+function unlockedLevelsForXp(totalXp) {
+  return Array.from({ length: Math.min(6, Math.floor(totalXp / 50) + 1) }, (_, index) => index + 1);
 }
 
 function progressJSON(progress, badges) {
@@ -41,7 +46,124 @@ router.get('/progress', async (req, res) => {
     { new: true, upsert: true },
   );
   const badges = await UserBadge.find({ userId: req.user._id }).sort({ awardedAt: -1 });
+  const unlockedLevels = unlockedLevelsForXp(progress.totalXp);
+  progress.unlockedLevels = unlockedLevels;
+  progress.currentLevel = unlockedLevels[unlockedLevels.length - 1];
+  await progress.save();
   return res.json({ progress: progressJSON(progress, badges) });
+});
+
+router.get('/leaderboard', async (req, res) => {
+  const entries = await ArenaProgress.find({ totalXp: { $gt: 0 } })
+    .sort({ totalXp: -1, updatedAt: 1 })
+    .limit(10)
+    .populate('userId', 'name');
+
+  const leaderboard = entries.map((entry, index) => ({
+    rank: index + 1,
+    userId: entry.userId ? entry.userId._id.toString() : '',
+    name: entry.userId ? entry.userId.name : 'Volunteer',
+    totalXp: entry.totalXp,
+    level: entry.currentLevel,
+  }));
+
+  const mine = await ArenaProgress.findOne({ userId: req.user._id });
+  let me = null;
+  if (mine) {
+    const ahead = await ArenaProgress.countDocuments({
+      totalXp: { $gt: mine.totalXp },
+    });
+    me = {
+      userId: req.user._id.toString(),
+      rank: ahead + 1,
+      name: req.user.name,
+      totalXp: mine.totalXp,
+      level: mine.currentLevel,
+    };
+  }
+
+  return res.json({ leaderboard, me });
+});
+
+router.get('/leaderboard/:userId', async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+    return res.status(400).json({ message: 'Invalid volunteer.' });
+  }
+  const user = await User.findById(req.params.userId).select('name');
+  if (!user) {
+    return res.status(404).json({ message: 'Volunteer not found.' });
+  }
+  const progress = await ArenaProgress.findOne({ userId: user._id });
+  const badges = await UserBadge.find({ userId: user._id }).sort({ awardedAt: -1 });
+  return res.json({
+    volunteer: {
+      id: user._id.toString(),
+      name: user.name,
+      totalXp: progress ? progress.totalXp : 0,
+      currentLevel: progress ? progress.currentLevel : 1,
+      approvedTasks: progress ? progress.approvedTasks : 0,
+      badges: badges.map((badge) => ({
+        id: badge.badgeId,
+        name: badge.name,
+        description: badge.description,
+        icon: badge.icon,
+        awardedAt: badge.awardedAt,
+      })),
+    },
+  });
+});
+
+router.get('/approved', async (req, res) => {
+  try {
+    const eventId = typeof req.query.eventId === 'string'
+      ? req.query.eventId.trim()
+      : '';
+    const articleId = typeof req.query.articleId === 'string'
+      ? req.query.articleId.trim()
+      : '';
+    const eventTitle = typeof req.query.eventTitle === 'string'
+      ? req.query.eventTitle.trim()
+      : '';
+    if (articleId && mongoose.Types.ObjectId.isValid(articleId)) {
+      const submissions = await TaskSubmission.find({
+        articleId,
+        status: { $in: ['submitted', 'approved'] },
+      }).populate('volunteerId', 'name').sort({ updatedAt: -1 }).exec();
+      return res.json({
+        proofs: submissions.map((submission) => ({
+          ...submission.toPublicJSON(),
+          volunteerName: submission.volunteerId?.name || 'Volunteer',
+        })),
+      });
+    }
+    if (!eventId && !eventTitle) {
+      return res.status(400).json({ message: 'Event ID or title is required.' });
+    }
+
+    const event = eventId && mongoose.Types.ObjectId.isValid(eventId)
+      ? await Event.findById(eventId).select('_id').exec()
+      : await Event.findOne({ title: eventTitle }).select('_id').exec();
+    if (!event) return res.json({ proofs: [] });
+
+    const submissions = await TaskSubmission.find({
+      eventId: event._id,
+      articleId: { $exists: false },
+      status: { $in: ['submitted', 'approved'] },
+    })
+      .populate('volunteerId', 'name')
+      .sort({ updatedAt: -1 })
+      .exec();
+
+    return res.json({
+      proofs: submissions.map((submission) => ({
+        ...submission.toPublicJSON(),
+        volunteerName: submission.volunteerId?.name || 'Volunteer',
+      })),
+    });
+  } catch (error) {
+    console.error('Failed to list approved proofs:', error);
+    return res.status(500).json({ message: 'Failed to load approved proofs.' });
+  }
 });
 
 router.get('/submissions', async (req, res) => {
@@ -118,6 +240,9 @@ router.post('/tasks/:taskId/submit', async (req, res) => {
     }
 
     const proof = req.body?.proof || {};
+    const articleId = mongoose.Types.ObjectId.isValid(req.body?.articleId)
+      ? req.body.articleId
+      : undefined;
     if (typeof proof.imageUrl !== 'string' || !proof.imageUrl) {
       return res.status(400).json({ message: 'Proof image is required.' });
     }
@@ -130,13 +255,14 @@ router.post('/tasks/:taskId/submit', async (req, res) => {
     const submission = existing
       ? await TaskSubmission.findByIdAndUpdate(
         existing._id,
-        { status: 'submitted', proof, review: { note: '' } },
+        { status: 'submitted', proof, review: { note: '' }, articleId },
         { new: true },
       )
       : await TaskSubmission.create({
         taskId: task._id,
         eventId: task.eventId,
         volunteerId: req.user._id,
+        articleId,
         proof,
       });
 
@@ -184,6 +310,9 @@ router.post('/submissions/:submissionId/review', async (req, res) => {
       { $setOnInsert: { userId: submission.volunteerId, badgeId: badge.id, name: badge.name, description: badge.description, icon: badge.icon, awardedAt: new Date() } },
       { upsert: true },
     );
+    progress.unlockedLevels = unlockedLevelsForXp(progress.totalXp);
+    progress.currentLevel = progress.unlockedLevels[progress.unlockedLevels.length - 1];
+    await progress.save();
   }
 
   await submission.save();
