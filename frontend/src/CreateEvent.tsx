@@ -88,24 +88,6 @@ export default function CreateEvent({
 
   return (
     <main className="create-event-page">
-      <header className="relative z-10 flex h-20 items-center justify-between px-5">
-        <button aria-label="Back" onClick={onBack} type="button">
-          <img alt="" className="h-[18px] w-[18px]" src={asset("6c9ad.svg")} />
-        </button>
-        <div className="absolute left-12 top-[38px] font-['Inter:Black'] text-[22px] font-black tracking-[-1.2px]">
-          Seva<span className="text-[#9800f8]">Sathi</span>
-          <img
-            alt=""
-            className="inline h-[22px] w-[18px]"
-            src={asset("6af05.svg")}
-          />
-        </div>
-        <div className="ml-auto flex items-center gap-5">
-          <img alt="" className="h-[30px] w-[27px]" src={asset("fb050.svg")} />
-          <img alt="Profile" className="h-9 w-9" src={asset("52dd4.png")} />
-        </div>
-      </header>
-
       <section className="relative z-10 h-[85px] px-[25px]">
         <h1 className="font-['Arimo:Bold'] text-[24px] font-bold">
           Create Event

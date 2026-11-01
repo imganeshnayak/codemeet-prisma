@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react"
 import {
   ApiError,
@@ -9,6 +10,9 @@ import {
   profileApi,
   storeToken,
 } from "./api"
+=======
+import { FormEvent, useRef, useState } from "react"
+>>>>>>> 021c0142866639128d274a7535bf8495abe52f6f
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
 import DonationTracker from "./DonationTracker"
@@ -547,18 +551,20 @@ function TaskCard({
   task,
   className = "",
   onOpenProof,
+  onSkip,
+  onInterest,
   onTrack,
 }: {
   task: Task
   className?: string
   onOpenProof?: () => void
+  onSkip?: () => void
+  onInterest?: () => void
   onTrack?: () => void
 }) {
-  const [liked, setLiked] = useState(false)
-
   return (
     <article
-      className={`task-card ${task.createEvent ? "cursor-pointer" : ""} ${className}`}
+      className={`task-card touch-pan-y ${task.createEvent ? "cursor-pointer" : ""} ${className}`}
       onClick={task.createEvent ? onTrack : undefined}
       onKeyDown={
         task.createEvent
@@ -577,26 +583,26 @@ function TaskCard({
         <img
           alt="Gloved volunteers planting a young tree"
           className="h-full w-full object-cover"
+          draggable={false}
           src={task.image}
         />
         <span className="font-outfit-semibold absolute left-5 top-5 flex items-center gap-2 rounded-full bg-[#f08be9] px-4 py-2 text-[15px] shadow-sm">
           <Icon className="h-4 w-4" name="leaf" />
           {task.category}
         </span>
-        <button
-          aria-label={liked ? "Unlike task" : "Like task"}
-          aria-pressed={liked}
-          className={`absolute right-5 top-5 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-md transition hover:scale-105 hover:text-[#8c23df] ${
-            liked ? "text-[#8c23df]" : "text-[#18151d]"
-          }`}
-          onClick={(event) => {
-            event.stopPropagation()
-            setLiked((current) => !current)
-          }}
-          type="button"
-        >
-          <Icon className={`h-5 w-5 ${liked ? "fill-current" : ""}`} name="heart" />
-        </button>
+        <div className="absolute right-5 top-5 flex gap-2">
+          <button
+            aria-label="Show interest"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#14a77f] shadow-md transition hover:scale-105"
+            onClick={(event) => {
+              event.stopPropagation()
+              onInterest?.()
+            }}
+            type="button"
+          >
+            <Icon className="h-5 w-5 fill-current" name="heart" />
+          </button>
+        </div>
       </div>
       <div className="px-5 pb-5 pt-5 sm:px-7">
         <div className="flex items-start justify-between gap-3">
@@ -703,13 +709,15 @@ function TasksScreen({
   const [current, setCurrent] = useState(0)
   const [direction, setDirection] = useState<"left" | "right" | null>(null)
   const [notice, setNotice] = useState("")
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
+  const suppressClick = useRef(false)
 
   function swipe(nextDirection: "left" | "right") {
     if (direction) return
     setDirection(nextDirection)
     setNotice(
       nextDirection === "right"
-        ? "Task saved to your interests"
+        ? "Task added to your interests"
         : "Task skipped",
     )
     window.setTimeout(() => {
@@ -760,6 +768,7 @@ function TasksScreen({
               <img
                 alt=""
                 className="h-full w-full object-cover"
+                draggable={false}
                 src={nextTask.image}
               />
             </div>
@@ -774,38 +783,56 @@ function TasksScreen({
                 ? "translate-x-[120%] rotate-12 opacity-0"
                 : ""
             }`}
+            onPointerCancel={() => {
+              swipeStart.current = null
+            }}
+            onPointerDown={(event) => {
+              if (
+                direction ||
+                (event.target instanceof Element &&
+                  event.target.closest("button"))
+              ) {
+                return
+              }
+              swipeStart.current = { x: event.clientX, y: event.clientY }
+            }}
+            onPointerUp={(event) => {
+              const start = swipeStart.current
+              swipeStart.current = null
+              if (!start) return
+              const distanceX = event.clientX - start.x
+              const distanceY = event.clientY - start.y
+              if (
+                Math.abs(distanceX) >= 70 &&
+                Math.abs(distanceX) > Math.abs(distanceY)
+              ) {
+                suppressClick.current = true
+                swipe(distanceX < 0 ? "left" : "right")
+                window.setTimeout(() => {
+                  suppressClick.current = false
+                }, 0)
+              }
+            }}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect()
+              const isRight = event.clientX - rect.left > rect.width / 2
+              swipe(isRight ? "right" : "left")
+            }}
+            onClickCapture={(event) => {
+              if (!suppressClick.current) return
+              suppressClick.current = false
+              event.preventDefault()
+              event.stopPropagation()
+            }}
           >
             <TaskCard
+              onInterest={() => swipe("right")}
               onOpenProof={onOpenProof}
+              onSkip={() => swipe("left")}
               onTrack={onTrack}
               task={task}
             />
           </div>
-        </div>
-
-        <div className="mx-auto mt-8 grid max-w-[560px] grid-cols-2 gap-8 sm:gap-20">
-          <button
-            className="swipe-action group"
-            onClick={() => swipe("left")}
-            type="button"
-          >
-            <span className="text-[#ff4051] group-hover:-rotate-6">
-              <Icon className="h-10 w-10" name="close" />
-            </span>
-            <strong>Swipe Left</strong>
-            <small>Skip this task</small>
-          </button>
-          <button
-            className="swipe-action group"
-            onClick={() => swipe("right")}
-            type="button"
-          >
-            <span className="text-[#14c99a] group-hover:rotate-6">
-              <Icon className="h-10 w-10 fill-current" name="heart" />
-            </span>
-            <strong>Swipe Right</strong>
-            <small>Show interest</small>
-          </button>
         </div>
       </section>
 
@@ -815,7 +842,7 @@ function TasksScreen({
           role="status"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#d8f23c]">
-            <Icon className="h-4 w-4" name="check" />
+            <Icon name="check" />
           </span>
           {notice}
         </div>
@@ -1069,6 +1096,30 @@ function ArenaScreen({
   const [arenaView, setArenaView] = useState<"map" | "leaderboard">("map")
   const [showReward, setShowReward] = useState(false)
   const [rewardClaimed, setRewardClaimed] = useState(false)
+  const stageRef = useRef<HTMLElement | null>(null)
+  const [canvasScale, setCanvasScale] = useState<number | null>(null)
+
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return
+    const compute = () => {
+      if (window.innerWidth >= 768) {
+        setCanvasScale(null)
+        return
+      }
+      const base = arenaView === "leaderboard" ? 928 : 640
+      const availableHeight = window.innerHeight - 88
+      setCanvasScale(Math.min(stage.clientWidth / 390, availableHeight / base))
+    }
+    compute()
+    const observer = new ResizeObserver(compute)
+    observer.observe(stage)
+    window.addEventListener("resize", compute)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener("resize", compute)
+    }
+  }, [arenaView])
 
   function changeArenaView(view: "map" | "leaderboard") {
     setArenaView(view)
@@ -1082,6 +1133,7 @@ function ArenaScreen({
       }`}
     >
       <section
+        ref={stageRef}
         aria-label={
           arenaView === "map" ? "Adventure level map" : "Level 6 leaderboard"
         }
@@ -1090,6 +1142,11 @@ function ArenaScreen({
             ? "pixel-art-stage-leaderboard"
             : "pixel-art-stage-map"
         } md:!h-[calc(100dvh-88px)] md:!min-h-0 md:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.03)] [@media(min-width:768px)_and_(min-height:800px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.1)] [@media(min-width:768px)_and_(min-height:900px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.25)] [@media(min-width:768px)_and_(min-height:1000px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.4)]`}
+        style={
+          canvasScale !== null
+            ? { height: (arenaView === "leaderboard" ? 928 : 640) * canvasScale }
+            : undefined
+        }
       >
         <div className="arena-view-toggle" aria-label="Arena view">
           <button
@@ -1112,7 +1169,14 @@ function ArenaScreen({
 
         {arenaView === "map" ? (
           <>
-            <div className="pixel-art-canvas pixel-art-canvas-map">
+            <div
+              className="pixel-art-canvas pixel-art-canvas-map"
+              style={
+                canvasScale !== null
+                  ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 640 * canvasScale }
+                  : undefined
+              }
+            >
               <PixelAdventureMap
                 onLevelSix={() => setShowReward(true)}
                 rewardClaimed={rewardClaimed}
@@ -1172,7 +1236,14 @@ function ArenaScreen({
             )}
           </>
         ) : (
-          <div className="pixel-art-canvas pixel-art-canvas-leaderboard">
+          <div
+            className="pixel-art-canvas pixel-art-canvas-leaderboard"
+            style={
+              canvasScale !== null
+                ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 928 * canvasScale }
+                : undefined
+            }
+          >
             <PixelLeaderboard />
           </div>
         )}

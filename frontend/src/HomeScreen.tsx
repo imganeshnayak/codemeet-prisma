@@ -429,24 +429,17 @@ export default function HomeScreen({
   }
 
   return (
-    <main className="min-h-dvh overflow-hidden bg-[#f8f2ff] pb-[118px] text-[#15121b]">
-      <div className="pointer-events-none absolute -right-28 -top-32 h-80 w-80 rounded-full bg-white/70 blur-2xl" />
+    <main className="min-h-dvh overflow-x-clip bg-[#f8f2ff] pb-[calc(118px+env(safe-area-inset-bottom))] text-[#15121b]">
+      <div className="pointer-events-none absolute -right-28 top-[-128px] h-80 w-80 rounded-full bg-white/70 blur-2xl" />
       <div className="pointer-events-none absolute -left-24 top-[430px] h-72 w-72 rounded-full bg-[#ead8ff]/75 blur-3xl" />
 
-      <header className="relative z-10 mx-auto flex max-w-[760px] items-center justify-between px-5 pb-4 pt-6">
+      <header className="relative z-10 mx-auto flex max-w-[760px] items-end justify-between px-5 pb-4 pt-[calc(1.25rem+env(safe-area-inset-top))] sm:pt-6">
         <div>
-          <h1 className="font-outfit-extrabold text-[34px] leading-tight tracking-[-1.3px] sm:text-[40px]">
+          <h1 className="font-outfit-extrabold text-[26px] leading-tight tracking-[-1.1px] sm:text-[36px]">
             Good Morning!
           </h1>
-          <p className="font-outfit-regular mt-1 text-base text-[#4f4855] sm:text-lg">
-            Let&apos;s spread kindness today
-            <Icon
-              className="ml-2 inline h-4 w-4 fill-current text-[#9a39df]"
-              name="heart"
-            />
-          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             aria-label="Notifications"
             className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/70"
@@ -457,7 +450,7 @@ export default function HomeScreen({
           </button>
           <button
             aria-label="Open Arena"
-            className="font-outfit-bold flex h-12 items-center justify-center rounded-full border-2 border-white bg-[#dec7ff] px-5 text-sm text-[#6f19d6] shadow-sm transition hover:bg-[#d2b5ff]"
+            className="font-outfit-bold flex h-11 items-center justify-center rounded-full border-2 border-white bg-[#dec7ff] px-4 text-sm text-[#6f19d6] shadow-sm transition hover:bg-[#d2b5ff]"
             onClick={() => onNavigate("arena")}
             type="button"
           >
@@ -466,7 +459,7 @@ export default function HomeScreen({
         </div>
       </header>
 
-      <section className="relative z-10 mx-auto max-w-[760px] px-5">
+      <section className="relative z-10 mx-auto max-w-[760px] px-4 sm:px-5">
         <div className="relative pt-4">
           <div
             aria-hidden="true"
@@ -513,20 +506,20 @@ export default function HomeScreen({
               if (event.deltaY > 45) showNextArticle()
             }}
           >
-            <div className="relative h-[330px] overflow-hidden sm:h-[420px]">
+            <div className="relative h-[230px] overflow-hidden sm:h-[400px]">
               <img
                 alt={article.alt}
                 className="h-full w-full object-cover"
                 src={article.image}
               />
-              <div className="absolute inset-x-0 top-0 flex items-start justify-between p-5">
-                <span className="font-outfit-bold flex items-center gap-2 rounded-full bg-[#edddff] px-5 py-3 text-sm text-[#5f168e] shadow-sm">
-                  <Icon className="h-5 w-5 text-[#3f9a40]" name="leaf" />
+              <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4 sm:p-5">
+                <span className="font-outfit-bold flex items-center gap-1.5 rounded-full bg-[#edddff] px-3.5 py-2 text-[13px] text-[#5f168e] shadow-sm sm:px-5 sm:py-3 sm:text-sm">
+                  <Icon className="h-4 w-4 text-[#3f9a40] sm:h-5 sm:w-5" name="leaf" />
                   {article.category}
                 </span>
                 <button
                   aria-label={saved ? "Remove saved story" : "Save this story"}
-                  className={`flex h-12 w-12 items-center justify-center rounded-full border-2 border-white shadow-md transition ${
+                  className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white shadow-md transition sm:h-12 sm:w-12 ${
                     saved
                       ? "bg-[#d8f23c] text-[#18151d]"
                       : "bg-white text-[#8d24e8]"
@@ -544,33 +537,33 @@ export default function HomeScreen({
               </div>
             </div>
 
-            <div className="p-5 sm:p-7">
+            <div className="p-4 sm:p-7">
               <div className="flex items-center justify-between gap-3">
-                <p className="font-outfit-semibold flex items-center gap-2 text-sm text-[#6d6572]">
-                  <Icon className="h-5 w-5 text-[#8d24e8]" name="calendar" />
+                <p className="font-outfit-semibold flex items-center gap-1.5 text-[13px] text-[#6d6572] sm:text-sm">
+                  <Icon className="h-4 w-4 text-[#8d24e8] sm:h-5 sm:w-5" name="calendar" />
                   {article.meta}
                 </p>
                 <span className="font-outfit-bold rounded-full bg-[#f2e8fb] px-3 py-1 text-xs text-[#6f19b6]">
                   {articleIndex + 1} / {articles.length}
                 </span>
               </div>
-              <h2 className="font-outfit-extrabold mt-4 text-[32px] leading-[1.05] tracking-[-1px] sm:text-[40px]">
+              <h2 className="font-outfit-extrabold mt-2.5 text-[24px] leading-[1.08] tracking-[-0.8px] sm:mt-4 sm:text-[38px]">
                 {article.title}
               </h2>
-              <p className="font-outfit-regular mt-4 text-[17px] leading-relaxed text-[#4f4855] sm:text-xl">
+              <p className="font-outfit-regular mt-2 text-[15px] leading-relaxed text-[#4f4855] sm:mt-4 sm:text-xl">
                 {article.description}
               </p>
 
-              <div className="mt-6 grid grid-cols-3 gap-4">
+              <div className="mt-4 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-4">
                 <button
-                  className="font-outfit-semibold group flex flex-col items-center gap-2 text-sm"
+                  className="font-outfit-semibold group flex flex-col items-center gap-2 text-[13px] sm:text-sm"
                   onClick={() =>
                     showNotice("We’ll show fewer stories like this")
                   }
                   type="button"
                 >
-                  <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#ffe8f1] text-[#ff3d62] transition group-hover:scale-105">
-                    <Icon className="h-8 w-8" name="x" />
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#ffe8f1] text-[#ff3d62] transition group-hover:scale-105 sm:h-16 sm:w-16">
+                    <Icon className="h-6 w-6 sm:h-8 sm:w-8" name="x" />
                   </span>
                   Dislike
                 </button>
@@ -584,8 +577,8 @@ export default function HomeScreen({
                   onPointerDown={(event) => event.stopPropagation()}
                   type="button"
                 >
-                  <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#eadcff] text-[#8229d7] transition group-hover:scale-105">
-                    <Icon className="h-8 w-8" name="check" />
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#eadcff] text-[#8229d7] transition group-hover:scale-105 sm:h-16 sm:w-16">
+                    <Icon className="h-6 w-6 sm:h-8 sm:w-8" name="check" />
                   </span>
                   Verify
                 </button>
@@ -600,15 +593,15 @@ export default function HomeScreen({
                   }}
                   type="button"
                 >
-                  <span
-                    className={`flex h-16 w-16 items-center justify-center rounded-full transition group-hover:scale-105 ${
+                    <span
+                    className={`flex h-12 w-12 items-center justify-center rounded-full transition group-hover:scale-105 sm:h-16 sm:w-16 ${
                       liked
                         ? "bg-[#d8f23c] text-[#187b60]"
                         : "bg-[#ddfaf1] text-[#16a07a]"
                     }`}
                   >
                     <Icon
-                      className={`h-8 w-8 ${liked ? "fill-current" : ""}`}
+                      className={`h-6 w-6 sm:h-8 sm:w-8 ${liked ? "fill-current" : ""}`}
                       name="heart"
                     />
                   </span>
@@ -621,7 +614,7 @@ export default function HomeScreen({
 
         <button
           aria-label="Add an article"
-          className="fixed bottom-[112px] right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#18151d] bg-[#d8f23c] text-[#6f19d6] shadow-[4px_5px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_3px_0_#18151d] sm:right-8"
+          className="fixed bottom-[calc(112px+env(safe-area-inset-bottom))] right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#18151d] bg-[#d8f23c] text-[#6f19d6] shadow-[4px_5px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_3px_0_#18151d] sm:right-8"
           onClick={() => setShowArticleForm(true)}
           type="button"
         >
@@ -631,7 +624,7 @@ export default function HomeScreen({
 
       {notice && (
         <div
-          className="font-outfit-semibold fixed left-1/2 top-5 z-50 -translate-x-1/2 rounded-full border-2 border-[#18151d] bg-white px-5 py-3 text-sm shadow-[3px_4px_0_#18151d]"
+          className="font-outfit-semibold fixed left-1/2 top-5 z-50 max-w-[92vw] -translate-x-1/2 rounded-full border-2 border-[#18151d] bg-white px-4 py-2.5 text-center text-[13px] shadow-[3px_4px_0_#18151d] sm:px-5 sm:py-3 sm:text-sm"
           role="status"
         >
           {notice}
@@ -654,7 +647,7 @@ export default function HomeScreen({
 
       <nav
         aria-label="Main navigation"
-        className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-[88px] max-w-[760px] grid-cols-5 rounded-t-[32px] border-x-2 border-t-2 border-[#e3dce8] bg-white px-2 shadow-[0_-8px_30px_rgba(84,36,119,0.10)]"
+        className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-[calc(78px+env(safe-area-inset-bottom))] max-w-[760px] grid-cols-5 rounded-t-[28px] border-x-2 border-t-2 border-[#e3dce8] bg-white px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(84,36,119,0.10)]"
       >
         {[
           { label: "Home", icon: "home" as const, screen: "home" as const },
