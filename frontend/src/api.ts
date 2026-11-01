@@ -15,7 +15,6 @@ export type ProfileUpdate = Pick<
   "name" | "email" | "location" | "bio" | "interests"
 >
 
-<<<<<<< HEAD
 export type ApiMemory = {
   id: string
   label: string
@@ -25,7 +24,8 @@ export type ApiMemory = {
   likesCount?: number
   liked?: boolean
   createdAt?: string
-=======
+}
+
 export type ApiEvent = {
   id: string
   role: "attending" | "organizing"
@@ -43,7 +43,6 @@ export type ApiEvent = {
   assignment?: string
   volunteers: number
   tasks: number
->>>>>>> 914f33b39a3018a439b5a0806c9ac0d65125cc52
 }
 
 export type AuthInput = {

@@ -18,7 +18,9 @@ import PixelLeaderboard from "./PixelLeaderboard"
 import SwipeDonation from "./SwipeDonation"
 import CreateEvent from "./CreateEvent"
 import EventVolunteers from "./EventVolunteers"
+import AcceptedVolunteers from "./AcceptedVolunteers"
 import TaskAssignments from "./TaskAssignments"
+import EventCommunity from "./EventCommunity"
 import MyEvents from "./MyEvents"
 import HomeScreen from "./HomeScreen"
 import NavigationIcon from "./NavigationIcon"
@@ -28,7 +30,8 @@ import {
   SevaEvent,
 } from "./events"
 
-type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "task-assignments" | "donation-tracker" | "my-events"
+type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "accepted-volunteers" | "task-assignments" | "event-community" | "donation-tracker" | "my-events"
+type EventPage = "event-volunteers" | "task-assignments" | "event-photos" | "event-community"
 type AppScreen = "home" | "tasks" | "arena" | "memories" | "profile" | "my-events"
 type IconName = "arrow" | "award" | "back" | "bell" | "bolt" | "calendar" | "camera" | "chart" | "check" | "chevron" | "close" | "edit" | "eye" | "flame" | "heart" | "home" | "image" | "leaf" | "location" | "lock" | "mail" | "profile" | "settings" | "shield" | "spark" | "star" | "target" | "tasks" | "trophy" | "users"
 
@@ -61,6 +64,25 @@ function initialsFromName(name: string) {
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("") || "?"
   )
+}
+
+function getEventPageFromHash(): { screen: EventPage; eventId: string } | null {
+  if (typeof window === "undefined") return null
+
+  const [route, query = ""] = window.location.hash.slice(1).split("?")
+  if (
+    route !== "event-volunteers" &&
+    route !== "task-assignments" &&
+    route !== "event-photos" &&
+    route !== "event-community"
+  ) {
+    return null
+  }
+
+  return {
+    screen: route,
+    eventId: new URLSearchParams(query).get("eventId") ?? "",
+  }
 }
 
 type Task = {
@@ -1537,12 +1559,13 @@ function EditProfileScreen({
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>(() =>
-    getStoredToken() ? "home" : "login",
-  )
+  const [screen, setScreen] = useState<Screen>(() => {
+    const eventPage = getEventPageFromHash()
+    return getStoredToken() && eventPage ? eventPage.screen : getStoredToken() ? "home" : "login"
+  })
   const [events, setEvents] = useState<SevaEvent[]>(initialEvents)
-  const [selectedEventId, setSelectedEventId] = useState(
-    "organizing-tree-drive",
+  const [selectedEventId, setSelectedEventId] = useState(() =>
+    getEventPageFromHash()?.eventId || "organizing-tree-drive",
   )
   const [createOrigin, setCreateOrigin] = useState<
     "swipe-donation" | "my-events" | "tasks"
@@ -1561,6 +1584,43 @@ export default function App() {
     interests: ["Environment", "Community", "Education"],
     photoUrl: "",
   })
+
+  useEffect(() => {
+    const applyHash = () => {
+      const h = window.location.hash.replace(/^#\/?/, "")
+      const valid: Screen[] = [
+        "login",
+        "register",
+        "home",
+        "tasks",
+        "arena",
+        "memories",
+        "profile",
+        "edit-profile",
+        "geo-proof",
+        "event-photos",
+        "swipe-donation",
+        "create-event",
+        "event-volunteers",
+        "task-assignments",
+        "event-community",
+        "donation-tracker",
+        "my-events",
+      ]
+      if (h && valid.includes(h as Screen)) {
+        setScreen(h as Screen)
+      }
+    }
+    applyHash()
+    window.addEventListener("hashchange", applyHash)
+    return () => window.removeEventListener("hashchange", applyHash)
+  }, [])
+
+  useEffect(() => {
+    if (window.location.hash.replace(/^#\/?/, "") !== screen) {
+      window.location.hash = screen
+    }
+  }, [screen])
 
   useEffect(() => {
     if (!getStoredToken()) return
@@ -1676,9 +1736,41 @@ export default function App() {
     return (
       <EventVolunteers
         event={selectedEvent}
+        showNavigationTabs
         onAssignments={() => setScreen("task-assignments")}
         onBack={() => setScreen("my-events")}
+        onCommunity={() => setScreen("event-community")}
         onPhotos={() => setScreen("event-photos")}
+        onVolunteers={() => setScreen("accepted-volunteers")}
+      />
+    )
+  }
+
+  if (screen === "accepted-volunteers") {
+    const selectedEvent =
+      events.find((event) => event.id === selectedEventId) ??
+      events.find((event) => event.role === "organizing")!
+    return (
+      <AcceptedVolunteers
+        event={selectedEvent}
+        onBack={() => setScreen("event-volunteers")}
+      />
+    )
+  }
+
+  if (screen === "event-community") {
+    const selectedEvent =
+      events.find((event) => event.id === selectedEventId) ??
+      events.find((event) => event.role === "organizing")!
+    return (
+      <EventCommunity
+        event={selectedEvent}
+        showNavigationTabs={false}
+        onAssignments={() => setScreen("task-assignments")}
+        onBack={() => setScreen("event-volunteers")}
+        onCommunity={() => setScreen("event-community")}
+        onPhotos={() => setScreen("event-photos")}
+        onVolunteers={() => setScreen("accepted-volunteers")}
       />
     )
   }
@@ -1690,9 +1782,12 @@ export default function App() {
     return (
       <TaskAssignments
         event={selectedEvent}
-        onBack={() => setScreen("my-events")}
+        showNavigationTabs={false}
+        onAssignments={() => setScreen("task-assignments")}
+        onBack={() => setScreen("event-volunteers")}
+        onCommunity={() => setScreen("event-community")}
         onPhotos={() => setScreen("event-photos")}
-        onVolunteers={() => setScreen("event-volunteers")}
+        onVolunteers={() => setScreen("accepted-volunteers")}
       />
     )
   }
