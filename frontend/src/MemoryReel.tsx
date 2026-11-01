@@ -261,14 +261,7 @@ export default function MemoryReel({
         </div>
       </header>
 
-      <section aria-labelledby="memory-gallery-title" className="memory-gallery">
-        <div className="memory-gallery-heading">
-          <div>
-            <span>Stories in motion</span>
-            <h2 id="memory-gallery-title">Community highlights</h2>
-          </div>
-          <p>Tap a frame to relive the moment</p>
-        </div>
+      <section className="memory-gallery">
         <div className="memory-reel-shell">
           <img
             alt=""
@@ -335,6 +328,16 @@ export default function MemoryReel({
             src={assets.galleryAccentRight}
           />
         </div>
+
+        <section aria-label="Community impact" className="memory-stats">
+          {stats.map((stat) => (
+            <div className="memory-stat" key={stat.label}>
+              <img alt="" src={stat.icon} />
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </div>
+          ))}
+        </section>
       </section>
 
       <section className="memory-hero">
@@ -388,16 +391,6 @@ export default function MemoryReel({
             <img alt="" className="camera-rays" src={assets.flashRays} />
           </div>
         </div>
-      </section>
-
-      <section aria-label="Community impact" className="memory-stats">
-        {stats.map((stat) => (
-          <div className="memory-stat" key={stat.label}>
-            <img alt="" src={stat.icon} />
-            <strong>{stat.value}</strong>
-            <span>{stat.label}</span>
-          </div>
-        ))}
       </section>
 
       <div aria-hidden="true" className="memory-garden">
