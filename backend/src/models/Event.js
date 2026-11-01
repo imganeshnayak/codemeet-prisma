@@ -81,7 +81,7 @@ const eventSchema = new Schema(
   { timestamps: true },
 );
 
-eventSchema.methods.toPublicJSON = function toPublicJSON() {
+eventSchema.methods.toPublicJSON = function toPublicJSON(role = 'organizing', assignment) {
   const eventDate = new Date(`${this.date}T00:00:00`);
   const today = new Date();
   const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -94,7 +94,7 @@ eventSchema.methods.toPublicJSON = function toPublicJSON() {
 
   return {
     id: this._id.toString(),
-    role: 'organizing',
+    role,
     title: this.title,
     description: this.description,
     category: this.category,
@@ -106,6 +106,7 @@ eventSchema.methods.toPublicJSON = function toPublicJSON() {
     image: this.image,
     status,
     organizer: this.organizer,
+    ...(assignment ? { assignment } : {}),
     volunteers: this.volunteers,
     tasks: this.tasks,
   };

@@ -9,6 +9,7 @@ type Destination =
   | "my-events"
   | "memories"
   | "profile"
+  | "donate-feed"
 
 type IconName =
   | "bell"
@@ -1434,8 +1435,12 @@ function ArticleDetailModal({
                 className="font-outfit-extrabold mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#18151d] bg-[#18151d] py-3 text-sm text-[#d8f23c] shadow-[2px_3px_0_#7c1bd8] transition hover:-translate-y-0.5 active:translate-y-0.5"
                 onClick={() => {
                   onClose()
-                  onNavigate("my-events")
-                  onNotice(`Registered interest in ${article.relatedEvent?.title}`)
+                  if (onJoinEvent && article.relatedEvent) {
+                    onJoinEvent(article.relatedEvent)
+                  } else {
+                    onNavigate("my-events")
+                    onNotice(`Registered interest in ${article.relatedEvent?.title}`)
+                  }
                 }}
                 type="button"
               >
@@ -1527,9 +1532,11 @@ function ArticleDetailModal({
 export default function HomeScreen({
   onNavigate,
   onVerify,
+  onJoinEvent,
 }: {
   onNavigate: (destination: Destination) => void
   onVerify: () => void
+  onJoinEvent?: (event: NonNullable<HomeArticle["relatedEvent"]>) => void
 }) {
   const [articles, setArticles] = useState(seedArticles)
   const [liked, setLiked] = useState(false)
@@ -1637,6 +1644,15 @@ export default function HomeScreen({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            aria-label="Donate feeding tickets"
+            className="flex items-center gap-1.5 rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] px-3 py-2 font-outfit-extrabold text-xs text-[#18151d] shadow-[2px_3px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#18151d]"
+            onClick={() => onNavigate("donate-feed")}
+            type="button"
+          >
+            <span className="text-sm">🍲</span>
+            <span>Feed Tickets</span>
+          </button>
           <button
             aria-label="View notifications"
             className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-white shadow-[2px_3px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#18151d]"

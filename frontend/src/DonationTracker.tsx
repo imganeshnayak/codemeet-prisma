@@ -1,40 +1,7 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { ApiDonationStage, ApiDonationTicket, donationsApi } from "./api"
 
 const asset = (name: string) => `/assets/donation-tracker/${name}`
-
-const journey = [
-  {
-    title: "Donation Received",
-    description: "Your donation was collected.",
-    time: "10 Oct, 10:24 AM",
-    photo: "fd25f.png",
-  },
-  {
-    title: "Sorted & Prepared",
-    description: "Items were verified and packed for distribution.",
-    time: "10 Oct, 03:15 PM",
-    photo: "405bb.png",
-  },
-  {
-    title: "Delivered",
-    description: "Donation was delivered to the community.",
-    time: "11 Oct, 11:30 AM",
-    photo: "41231.png",
-  },
-  {
-    title: "Received & Confirmed",
-    description: "The receiver has confirmed successful receipt.",
-    time: "11 Oct, 11:45 AM",
-    photo: "ab234.png",
-    received: true,
-  },
-]
-
-const categories = [
-  { label: "Clothes", icon: "dde4a.svg" },
-  { label: "Food", icon: "d214b.svg" },
-  { label: "Funds", icon: "2f73f.svg" },
-]
 
 function Brand() {
   return (
@@ -81,16 +48,93 @@ function DecorativeGarden() {
   )
 }
 
-export default function DonationTracker({ onBack }: { onBack: () => void }) {
-  const [category, setCategory] = useState("Clothes")
-  const [showProofNotice, setShowProofNotice] = useState(false)
+export default function DonationTracker({
+  onBack,
+  ticket: initialTicket,
+}: {
+  onBack: () => void
+  ticket?: ApiDonationTicket | null
+}) {
+  const [currentTicket, setCurrentTicket] = useState<ApiDonationTicket | null>(
+    initialTicket || null
+  )
+  const [selectedProof, setSelectedProof] = useState<ApiDonationStage | null>(null)
+  const [isAdvancing, setIsAdvancing] = useState(false)
+  const [statusNotice, setStatusNotice] = useState("")
+
+  useEffect(() => {
+    if (initialTicket) {
+      setCurrentTicket(initialTicket)
+      return
+    }
+
+    let active = true
+    donationsApi
+      .getLatest()
+      .then((res) => {
+        if (active && res?.ticket) {
+          setCurrentTicket(res.ticket)
+        }
+      })
+      .catch(() => {
+        // Fallback default ticket
+      })
+
+    return () => {
+      active = false
+    }
+  }, [initialTicket])
+
+  async function handleAdvanceStage() {
+    if (!currentTicket?.ticketId || isAdvancing) return
+    setIsAdvancing(true)
+    try {
+      const res = await donationsApi.advanceStage(currentTicket.ticketId)
+      if (res?.ticket) {
+        setCurrentTicket(res.ticket)
+        setStatusNotice("Live tracking updated with new on-ground proof!")
+      }
+    } catch {
+      // Local fallback advance for offline demo
+      setCurrentTicket((prev) => {
+        if (!prev) return prev
+        const stageOrder: ("pledged" | "procured" | "prepared" | "distributed")[] = [
+          "pledged",
+          "procured",
+          "prepared",
+          "distributed",
+        ]
+        const currentIdx = stageOrder.indexOf(prev.status)
+        const nextIdx = Math.min(stageOrder.length - 1, currentIdx + 1)
+        const nextStatus = stageOrder[nextIdx]
+        const updatedStages = prev.stages.map((st, idx) => ({
+          ...st,
+          completed: idx <= nextIdx,
+        }))
+        return {
+          ...prev,
+          status: nextStatus,
+          stages: updatedStages,
+        }
+      })
+      setStatusNotice("Live stage advanced! (Offline mode)")
+    } finally {
+      setIsAdvancing(false)
+      setTimeout(() => setStatusNotice(""), 3000)
+    }
+  }
+
+  const stages = currentTicket?.stages || []
+  const activeStageIndex = stages.findIndex((s) => !s.completed)
+  const currentActiveIdx =
+    activeStageIndex === -1 ? stages.length - 1 : Math.max(0, activeStageIndex - 1)
 
   return (
-    <main className="donation-tracker min-h-dvh bg-[#fffbff] text-black">
+    <main className="donation-tracker min-h-dvh bg-[#fffbff] text-black pb-16">
       <header className="mx-auto flex h-[54px] w-full max-w-[760px] items-center justify-between px-[22px]">
         <button
-          aria-label="Back to tasks"
-          className="flex h-9 w-9 items-center justify-start"
+          aria-label="Back"
+          className="flex h-9 w-9 items-center justify-start text-[#18151d]"
           onClick={onBack}
           type="button"
         >
@@ -100,6 +144,7 @@ export default function DonationTracker({ onBack }: { onBack: () => void }) {
           <Brand />
         </div>
         <div className="flex items-center gap-[15px]">
+          <span className="flex h-2 w-2 rounded-full bg-[#208a46] animate-pulse" />
           <button aria-label="Notifications" className="relative" type="button">
             <img alt="" className="h-7 w-[21px]" src={asset("fb050.svg")} />
           </button>
@@ -113,146 +158,291 @@ export default function DonationTracker({ onBack }: { onBack: () => void }) {
         </div>
       </header>
 
+      {/* Hero Header */}
       <section className="relative mx-auto h-[171px] w-full max-w-[760px] overflow-hidden px-[22px] pt-1">
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 rounded-full border-[0.7px] border-[#9800f8] bg-[#f5e8fc] px-[11px] py-1.5">
             <img alt="" className="h-[19px] w-[19px]" src={asset("9d200.svg")} />
             <span className="font-['Inter:Bold'] text-xs font-bold">
-              Donation Tracker
+              Live Feeding Tracker
             </span>
           </div>
           <h1 className="mt-[10px] font-['Inter:Black'] text-[24px] font-black leading-[1.03] tracking-[-0.9px]">
             Track Your
             <br />
-            Donation
+            Feeding Ticket
             <br />
             with{" "}
             <span className="inline-block rounded-[11px] border-[0.7px] border-[#74852a] bg-[#beff21] px-[5px] leading-[1.15]">
-              Live Proof.
+              Live GPS Proof.
             </span>
           </h1>
           <p className="mt-2 w-[225px] font-['Inter:Regular'] text-[10.5px] leading-[1.32] text-[#33333f]">
-            See the complete journey of your donation
-            <br />— from your hand to the right people.
+            Verified delivery from local community kitchens to children in need.
           </p>
         </div>
         <HeroArtwork />
       </section>
 
+      {/* Ticket Details & Live Stages */}
       <section className="mx-auto flex w-full max-w-[760px] flex-col gap-[13px] px-[13px] pb-1">
-        <div
-          className="grid h-11 grid-cols-3 rounded-full border-[0.7px] border-[#9800f8] bg-[#f5e8fc] p-[3px]"
-          role="tablist"
-        >
-          {categories.map((item) => {
-            const active = category === item.label
+        {/* Ticket Header Card */}
+        <article className="flex h-[82px] items-center gap-[10px] rounded-2xl border-[1.5px] border-[#18151d] bg-[#fffbff] p-[10px] shadow-[3px_3px_0_#18151d]">
+          <div className="relative flex h-[62px] w-[95px] shrink-0 items-end overflow-hidden rounded-[12px] border border-[#18151d]">
+            <img
+              alt="Meals being prepared"
+              className="absolute inset-0 h-full w-full object-cover"
+              src={stages[currentActiveIdx]?.photoUrl || asset("405bb.png")}
+            />
+            <span className="relative flex h-[19px] w-full items-center justify-center bg-[#18151d] font-outfit-bold text-[9px] text-[#d8f23c]">
+              🍲 {currentTicket?.mealCount || 5} Meals
+            </span>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs font-extrabold text-[#7e1bd9]">
+                #{currentTicket?.ticketId || "FEED-8842"}
+              </span>
+              <span className="h-1.5 w-1.5 rounded-full bg-[#18151d]" />
+              <span className="text-[10px] font-outfit-semibold text-[#665e70]">
+                ₹{currentTicket?.amount || 250}
+              </span>
+            </div>
+            <h2 className="font-outfit-extrabold truncate text-[14px] text-[#18151d]">
+              {currentTicket?.cause || "Children Nutrition Drive"}
+            </h2>
+            <p className="font-outfit-semibold truncate text-[10.5px] text-[#6d6275]">
+              📍 {currentTicket?.location || "Kadri Hills, Mangaluru"}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <div className="flex items-center gap-1 rounded-full bg-[#d8f23c] px-2 py-1 border border-[#18151d]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#208a46] animate-pulse" />
+              <span className="font-outfit-bold text-[9px] uppercase text-[#18151d]">
+                {currentTicket?.status === "distributed"
+                  ? "Delivered ✓"
+                  : currentTicket?.status || "Pledged"}
+              </span>
+            </div>
+          </div>
+        </article>
+
+        {/* Live Journey Timeline */}
+        <div className="flex items-center justify-between px-2 pt-1">
+          <h2 className="font-outfit-black text-[17px] text-[#18151d]">
+            Live Utilization Journey
+          </h2>
+          <span className="font-outfit-semibold text-xs text-[#7e1bd9]">
+            Tap any step for photo proof
+          </span>
+        </div>
+
+        <div className="relative flex flex-col gap-[9px] pl-8 pr-[3px]">
+          {/* Vertical connecting line */}
+          <div className="absolute bottom-[35px] left-5 top-4 w-[3px] rounded-full bg-[#9800f8]" />
+
+          {stages.map((step, idx) => {
+            const isCompleted = step.completed
+            const isLatest = idx === currentActiveIdx
+
             return (
-              <button
-                aria-selected={active}
-                className={`flex items-center justify-center gap-2 rounded-full font-['Inter:Semi_Bold'] text-[13px] font-semibold transition ${
-                  active ? "bg-[#9800f8] text-white" : "text-[#080909]"
+              <article
+                className={`relative cursor-pointer transition ${
+                  isLatest ? "scale-[1.01]" : ""
                 }`}
-                key={item.label}
-                onClick={() => setCategory(item.label)}
-                role="tab"
-                type="button"
+                key={step.title}
+                onClick={() => setSelectedProof(step)}
               >
-                <img alt="" className="h-[21px] w-[21px]" src={asset(item.icon)} />
-                {item.label}
-              </button>
+                <div
+                  className={`flex items-center gap-[10px] overflow-hidden rounded-2xl border-2 p-[8px] transition ${
+                    isCompleted
+                      ? "border-[#18151d] bg-[#ffffff] shadow-[2px_2px_0_#18151d]"
+                      : "border-[#e0d6eb] bg-[#f9f5fc] opacity-70"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1 pl-2">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-outfit-extrabold text-[13px] leading-tight text-[#18151d]">
+                        {step.title}
+                      </h3>
+                      {step.geoTag?.verified && (
+                        <span className="rounded-md bg-[#efffdc] px-1 py-0.5 font-outfit-bold text-[9px] text-[#208a46]">
+                          GPS ✓
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="font-outfit-regular mt-1 text-[11px] leading-snug text-[#4a4252]">
+                      {step.description}
+                    </p>
+
+                    <div className="mt-1.5 flex items-center gap-2 font-outfit-semibold text-[10px] text-[#786b82]">
+                      <span>🕒 {new Date(step.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span>•</span>
+                      <span>👤 {step.volunteer.name}</span>
+                    </div>
+                  </div>
+
+                  {/* Photo Proof Thumbnail with Zoom cue */}
+                  <div className="group relative h-[66px] w-[96px] shrink-0 overflow-hidden rounded-xl border border-[#18151d]">
+                    <img
+                      alt={step.title}
+                      className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                      src={step.photoUrl}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover:opacity-100">
+                      <span className="font-outfit-bold text-[9px] text-white">
+                        View Proof ↗
+                      </span>
+                    </div>
+                    {isCompleted && (
+                      <span className="absolute bottom-1 right-1 rounded-full bg-[#d8f23c] px-1.5 py-0.5 font-outfit-bold text-[8px] text-[#18151d] shadow-xs">
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Marker icon on vertical line */}
+                <span
+                  className={`absolute -left-[23px] top-4 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#18151d] ${
+                    isCompleted
+                      ? "bg-[#beff21] text-[#18151d]"
+                      : "bg-[#e8def5] text-[#9385a4]"
+                  }`}
+                >
+                  {isCompleted ? "✓" : idx + 1}
+                </span>
+              </article>
             )
           })}
         </div>
 
-        <article className="flex h-[75px] items-center gap-[10px] rounded-2xl border-[0.8px] border-[#c9addf] bg-[#fffbff] p-[9px]">
-          <div className="relative flex h-[57px] w-[92px] shrink-0 items-end overflow-hidden rounded-[10px]">
-            <img
-              alt="Folded clothes ready for donation"
-              className="absolute inset-0 h-full w-full object-cover"
-              src={asset("6d276.png")}
-            />
-            <span className="relative flex h-[18px] w-full items-center justify-center rounded-full bg-[#9800f8] font-['Inter:Semi_Bold'] text-[9px] font-semibold text-white">
-              Clothes Donation
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-['Inter:Extra_Bold'] text-[15px] font-extrabold tracking-[-0.6px]">
-              Donation #DN-4821
-            </h2>
-            <p className="mt-[7px] font-['Inter:Regular'] text-[10.5px] text-[#33333f]">
-              10 Oct 2025 • 12 Items
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-full bg-[#bbfbc1] px-1.5 py-[5px]">
-            <img alt="" className="h-[15px] w-[15px]" src={asset("aa2e6.svg")} />
-            <span className="font-['Inter:Bold'] text-[9px] font-bold">Completed</span>
-          </div>
-        </article>
-
-        <h2 className="pl-3 font-['Inter:Extra_Bold'] text-[17px] font-extrabold">
-          Donation Journey
-        </h2>
-
-        <div className="relative flex flex-col gap-[7px] pl-8 pr-[3px]">
-          <div className="absolute bottom-[35px] left-5 top-4 w-[2.5px] bg-[#9800f8]" />
-          {journey.map((step) => (
-            <article className="relative h-[70px]" key={step.title}>
-              <div className="flex h-full items-center gap-[5px] overflow-hidden rounded-2xl border-[0.8px] border-[#dccde7] bg-[#fcf7ff] py-[5px] pl-[19px] pr-[9px]">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-['Inter:Extra_Bold'] text-[13.2px] font-extrabold leading-normal tracking-[-0.5px]">
-                    {step.title}
-                  </h3>
-                  <p className="mt-[2px] max-w-[180px] font-['Inter:Regular'] text-[10.1px] leading-[1.18] text-[#33333f]">
-                    {step.description}
-                  </p>
-                  <div className="mt-[2px] flex items-center gap-1">
-                    <img alt="" className="h-3 w-3" src={asset("811c1.svg")} />
-                    <span className="font-['Inter:Regular'] text-[9.7px]">
-                      {step.time}
-                    </span>
-                  </div>
-                </div>
-                <div className="relative h-[60px] w-[113px] shrink-0 overflow-hidden rounded-[10px]">
-                  <img
-                    alt=""
-                    className="h-full w-full object-cover"
-                    src={asset(step.photo)}
-                  />
-                  {step.received && (
-                    <span className="absolute bottom-[3px] right-[3px] flex items-center gap-[3px] rounded-full bg-white p-[3px] font-['Inter:Bold'] text-[8px] font-bold">
-                      <img alt="" className="h-[13px] w-[13px]" src={asset("6d04a.svg")} />
-                      Received
-                    </span>
-                  )}
-                </div>
-              </div>
-              <span className="absolute left-[-23px] top-2 flex h-6 w-6 items-center justify-center rounded-full border-[1.2px] border-[#8700db] bg-[#beff21]">
-                <img alt="" className="h-[15px] w-[15px]" src={asset("606ab.svg")} />
-              </span>
-            </article>
-          ))}
-        </div>
-
-        <div className="px-[15px] pt-[3px]">
+        {/* Live Simulation Control Button */}
+        <div className="px-3 pt-3">
           <button
-            className="flex h-[39px] w-full items-center justify-center gap-3 rounded-full border border-[#9800f8] bg-[#f5e8fc] font-['Inter:Extra_Bold'] text-sm font-extrabold"
-            onClick={() => setShowProofNotice(true)}
+            className="font-outfit-extrabold flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#18151d] bg-[#f5e8fc] py-3 text-sm text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+            disabled={isAdvancing || currentTicket?.status === "distributed"}
+            onClick={handleAdvanceStage}
             type="button"
           >
-            <img alt="" className="h-[22px] w-[22px]" src={asset("05631.svg")} />
-            View Full Proofs
-            <img alt="" className="h-5 w-5" src={asset("77d65.svg")} />
+            <span>⚡ Simulate Next Live On-Ground Update</span>
           </button>
         </div>
-        {showProofNotice && (
+
+        {statusNotice && (
           <p
-            className="text-center font-['Inter:Bold'] text-[11px] font-bold text-[#6500a4]"
+            className="text-center font-outfit-bold text-xs text-[#6500a4]"
             role="status"
           >
-            All donation proofs are shown above.
+            {statusNotice}
           </p>
         )}
       </section>
+
+      {/* Live Geotagged Photo Proof Modal */}
+      {selectedProof && (
+        <div
+          aria-labelledby="proof-modal-title"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+          role="dialog"
+        >
+          <div className="relative w-full max-w-md overflow-hidden rounded-[32px] border-2 border-[#18151d] bg-white shadow-[0_20px_50px_rgba(24,21,29,0.4)]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b-2 border-[#18151d] bg-[#faf6ff] px-5 py-3.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#d8f23c] border border-[#18151d] text-sm">
+                  📍
+                </span>
+                <div>
+                  <h3
+                    className="font-outfit-extrabold text-sm text-[#18151d]"
+                    id="proof-modal-title"
+                  >
+                    Live Geotagged Photo Proof
+                  </h3>
+                  <div className="font-outfit-semibold text-[11px] text-[#7119d6]">
+                    Tamper-Proof GPS Verified
+                  </div>
+                </div>
+              </div>
+
+              <button
+                aria-label="Close proof preview"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#18151d] bg-white text-sm font-bold text-[#18151d] hover:bg-[#f2e7fe]"
+                onClick={() => setSelectedProof(null)}
+                type="button"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Photo with GPS Watermark overlay */}
+            <div className="relative h-64 w-full bg-black">
+              <img
+                alt={selectedProof.title}
+                className="h-full w-full object-cover"
+                src={selectedProof.photoUrl}
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-md bg-[#beff21] px-2 py-0.5 font-outfit-black text-[10px] text-[#18151d]">
+                    LIVE DISPATCH PROOF
+                  </span>
+                  <span className="font-mono text-[10px] text-white/90">
+                    {selectedProof.geoTag?.coordinates || "12.8718° N, 74.8560° E"}
+                  </span>
+                </div>
+                <div className="font-outfit-bold mt-1 text-sm">
+                  {selectedProof.geoTag?.location}
+                </div>
+              </div>
+            </div>
+
+            {/* Proof Metadata Card */}
+            <div className="p-5">
+              <div className="rounded-2xl border-2 border-[#18151d] bg-[#fbf8ff] p-3 text-xs">
+                <div className="font-outfit-bold text-[13px] text-[#18151d]">
+                  {selectedProof.title}
+                </div>
+                <p className="font-outfit-regular mt-1 text-[#584f60]">
+                  {selectedProof.description}
+                </p>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#e2d5ec] pt-2 font-outfit-semibold text-[11px]">
+                  <div>
+                    <span className="text-[#897d92]">Field Volunteer:</span>
+                    <div className="font-outfit-bold text-[#18151d]">
+                      {selectedProof.volunteer?.name} ({selectedProof.volunteer?.role})
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[#897d92]">Recorded Time:</span>
+                    <div className="font-outfit-bold text-[#18151d]">
+                      {new Date(selectedProof.timestamp).toLocaleString([], {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                className="font-outfit-extrabold mt-4 flex w-full items-center justify-center rounded-xl border-2 border-[#18151d] bg-[#d8f23c] py-3 text-sm text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                onClick={() => setSelectedProof(null)}
+                type="button"
+              >
+                Close Proof
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <DecorativeGarden />
     </main>
   )

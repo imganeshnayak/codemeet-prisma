@@ -1,3 +1,5 @@
+import { FormEvent, useState } from "react";
+import { ApiTask, tasksApi } from "./api";
 import { formatEventDate, SevaEvent } from "./events";
 
 const assetPathPrefix = "/assets";
@@ -17,7 +19,45 @@ const imgDroplet = `${assetPathPrefix}/08fcd.svg`;
 const imgCamera = `${assetPathPrefix}/9c882.svg`;
 const imgTrash2 = `${assetPathPrefix}/294e5.svg`;
 
-export default function TaskAssignments({ event, onBack, onVolunteers, onPhotos }: { event: SevaEvent; onBack: () => void; onVolunteers: () => void; onPhotos: () => void }) {
+export default function TaskAssignments({ event, onBack, onVolunteers, onPhotos, onTaskCreated }: { event: SevaEvent; onBack: () => void; onVolunteers: () => void; onPhotos: () => void; onTaskCreated: (task: ApiTask) => void }) {
+  const [addingTask, setAddingTask] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Community");
+  const [volunteers, setVolunteers] = useState("0");
+  const [points, setPoints] = useState("50");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submitTask(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!title.trim() || !description.trim()) {
+      setError("Enter a task title and description.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const { task } = await tasksApi.create({
+        eventId: event.id,
+        title: title.trim(),
+        description: description.trim(),
+        category: category.trim() || "Community",
+        volunteers: Number(volunteers) || 0,
+        points: points.trim() || "50",
+        image: event.image,
+      });
+      onTaskCreated(task);
+      setTitle("");
+      setDescription("");
+      setAddingTask(false);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not post task.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="bg-[#fcf9ff] content-stretch flex flex-col items-start relative min-h-dvh w-full" data-node-id="199:641" data-name="Task assignments · Mobile">
       <div className="border-[#e2cff3] border-b border-solid content-stretch flex gap-[14px] h-[56px] items-center overflow-clip px-[18px] relative shrink-0 w-full" data-node-id="199:642" data-name="Event header">
@@ -99,15 +139,28 @@ export default function TaskAssignments({ event, onBack, onVolunteers, onPhotos 
             <p className="[word-break:break-word] font-['Roboto:Bold'] font-bold leading-[normal] relative shrink-0 text-[#191022] text-[14px] whitespace-nowrap" data-node-id="199:673" style={{ fontVariationSettings: '"wdth" 100' }}>
               Task Assignments ({event.tasks})
             </p>
-            <div className="bg-[#f6eefc] border border-[#9b20ed] border-solid content-stretch flex gap-[5px] h-[26px] items-center overflow-clip px-[9px] relative rounded-[30px] shrink-0" data-node-id="199:674" data-name="Add task">
+            <button className="bg-[#f6eefc] border border-[#9b20ed] border-solid content-stretch flex gap-[5px] h-[26px] items-center overflow-clip px-[9px] relative rounded-[30px] shrink-0" data-node-id="199:674" data-name="Add task" onClick={() => setAddingTask((current) => !current)} type="button">
               <div className="relative shrink-0 size-[12px]" data-node-id="199:876" data-name="plus">
                 <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgPlus} />
               </div>
               <p className="[word-break:break-word] font-['Roboto:SemiBold'] font-semibold leading-[normal] relative shrink-0 text-[#9b20ed] text-[10px] whitespace-nowrap" data-node-id="199:676" style={{ fontVariationSettings: '"wdth" 100' }}>
                 Add Task
               </p>
-            </div>
+            </button>
           </div>
+          {addingTask && (
+            <form className="w-full space-y-2 rounded-lg border border-[#e2cff3] bg-[#f8f2ff] p-3" onSubmit={submitTask}>
+              <input className="w-full rounded border border-[#d6c5e5] bg-white p-2 text-xs" maxLength={80} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" required value={title} />
+              <textarea className="w-full rounded border border-[#d6c5e5] bg-white p-2 text-xs" maxLength={240} onChange={(e) => setDescription(e.target.value)} placeholder="What should volunteers do?" required value={description} />
+              <div className="grid grid-cols-3 gap-2">
+                <input className="rounded border border-[#d6c5e5] bg-white p-2 text-xs" onChange={(e) => setCategory(e.target.value)} placeholder="Category" value={category} />
+                <input className="rounded border border-[#d6c5e5] bg-white p-2 text-xs" min="0" onChange={(e) => setVolunteers(e.target.value)} placeholder="Volunteers" type="number" value={volunteers} />
+                <input className="rounded border border-[#d6c5e5] bg-white p-2 text-xs" onChange={(e) => setPoints(e.target.value)} placeholder="Points" value={points} />
+              </div>
+              {error && <p className="text-xs text-[#b42a3f]" role="alert">{error}</p>}
+              <button className="rounded bg-[#8c23df] px-3 py-2 text-xs font-bold text-white" disabled={saving} type="submit">{saving ? "Posting..." : "Post task"}</button>
+            </form>
+          )}
           <div className="bg-[#fcf9ff] border border-[#e2cff3] border-solid content-stretch flex gap-[9px] items-center min-h-[80px] overflow-clip p-[10px] relative rounded-[9px] shrink-0 w-full" data-node-id="199:677" data-name="Task card">
             <div className="bg-[#edfbd8] content-stretch flex h-[36px] items-center justify-center overflow-clip relative rounded-[9px] shrink-0 w-[32px]" data-node-id="199:678" data-name="Task symbol">
               <div className="relative shrink-0 size-[22px]" data-node-id="199:879" data-name="sprout">
