@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { EventRole, EventStatus, formatEventDate, SevaEvent } from "./events"
 import NavigationIcon from "./NavigationIcon"
 
@@ -89,13 +89,6 @@ function Glyph({
     </svg>
   )
 }
-
-const statuses: Array<"All" | EventStatus> = [
-  "All",
-  "Upcoming",
-  "Ongoing",
-  "Completed",
-]
 
 function StatusBadge({ status }: { status: EventStatus }) {
   const styles = {
@@ -359,32 +352,15 @@ export default function MyEvents({
   onTasks: (event: SevaEvent) => void
 }) {
   const [role, setRole] = useState<EventRole>("attending")
-  const [query, setQuery] = useState("")
-  const [status, setStatus] = useState<"All" | EventStatus>("All")
   const [detailEvent, setDetailEvent] = useState<SevaEvent | null>(null)
   const detailTrigger = useRef<HTMLButtonElement | null>(null)
 
   const roleEvents = events.filter((event) => event.role === role)
-  const visibleEvents = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-    return roleEvents.filter((event) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        [event.title, event.category, event.location].some((value) =>
-          value.toLowerCase().includes(normalizedQuery),
-        )
-      return matchesQuery && (status === "All" || event.status === status)
-    })
-  }, [query, roleEvents, status])
+  const visibleEvents = roleEvents
 
   function closeDetails() {
     setDetailEvent(null)
     window.setTimeout(() => detailTrigger.current?.focus(), 0)
-  }
-
-  function clearFilters() {
-    setQuery("")
-    setStatus("All")
   }
 
   return (
@@ -408,33 +384,17 @@ export default function MyEvents({
             <span className="absolute right-2 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#ff3d56]" />
           </button>
           <button
-            aria-label="Open profile"
-            className="font-outfit-bold flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#18151d] bg-[#d8f23c] text-sm"
-            onClick={() => onNavigate("profile")}
+            aria-label="Create event"
+            className="font-outfit-bold flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#18151d] bg-[#d8f23c] text-xl leading-none shadow-[3px_4px_0_#18151d] transition hover:-translate-y-0.5"
+            onClick={onCreate}
             type="button"
           >
-            AS
+            +
           </button>
         </div>
       </header>
 
       <section className="mx-auto max-w-[1100px] px-5 sm:px-8">
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="font-outfit-regular mt-4 max-w-[580px] text-[16px] leading-relaxed text-[#5f5964] sm:text-lg">
-              Keep up with events you joined and the communities you organize.
-            </p>
-          </div>
-          <button
-            className="font-outfit-bold flex h-14 items-center justify-center gap-2 rounded-[14px] border-2 border-[#18151d] bg-[#d8f23c] px-6 shadow-[4px_5px_0_#18151d] transition hover:-translate-y-0.5"
-            onClick={onCreate}
-            type="button"
-          >
-            <span className="text-xl">+</span>
-            Create event
-          </button>
-        </div>
-
         <div
           aria-label="Event role"
           className="mt-8 grid max-w-[560px] grid-cols-2 gap-2 rounded-[18px] border-2 border-[#18151d] bg-white p-2"
@@ -471,37 +431,6 @@ export default function MyEvents({
           })}
         </div>
 
-        <div className="mt-6 flex flex-col gap-4 rounded-[20px] border-2 border-[#ded8e5] bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
-          <label className="flex h-12 flex-1 items-center gap-3 rounded-xl border-2 border-[#ded8e5] px-4 focus-within:border-[#8c23df] lg:max-w-[430px]">
-            <Glyph className="h-5 w-5 text-[#8c8590]" name="search" />
-            <span className="sr-only">Search events</span>
-            <input
-              className="font-outfit-regular min-w-0 flex-1 outline-none placeholder:text-[#9a929f]"
-              onChange={(inputEvent) => setQuery(inputEvent.target.value)}
-              placeholder="Search title, category, or place"
-              type="search"
-              value={query}
-            />
-          </label>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {statuses.map((filterStatus) => (
-              <button
-                aria-pressed={status === filterStatus}
-                className={`font-outfit-semibold h-10 shrink-0 rounded-full border-2 px-4 text-sm ${
-                  status === filterStatus
-                    ? "border-[#18151d] bg-[#ffd8ef]"
-                    : "border-[#ded8e5] bg-white text-[#686171]"
-                }`}
-                key={filterStatus}
-                onClick={() => setStatus(filterStatus)}
-                type="button"
-              >
-                {filterStatus}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="mt-5 flex items-center justify-between">
           <h2 className="font-outfit-extrabold text-2xl">
             {role === "attending" ? "Events you joined" : "Events you organize"}
@@ -534,31 +463,21 @@ export default function MyEvents({
               <Glyph className="h-8 w-8" name="calendar" />
             </span>
             <h3 className="font-outfit-extrabold mt-4 text-2xl">
-              {roleEvents.length ? "No matching events" : "Nothing here yet"}
+              Nothing here yet
             </h3>
             <p className="font-outfit-regular mt-2 max-w-[400px] text-[#6d6572]">
-              {roleEvents.length
-                ? "Try a different search or clear your status filter."
-                : role === "attending"
-                  ? "Explore volunteer tasks to find your next opportunity."
-                  : "Create an event and bring your community together."}
+              {role === "attending"
+                ? "Explore volunteer tasks to find your next opportunity."
+                : "Create an event and bring your community together."}
             </p>
             <button
               className="font-outfit-bold mt-5 h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-5"
               onClick={
-                roleEvents.length
-                  ? clearFilters
-                  : role === "attending"
-                    ? () => onNavigate("tasks")
-                    : onCreate
+                role === "attending" ? () => onNavigate("tasks") : onCreate
               }
               type="button"
             >
-              {roleEvents.length
-                ? "Clear filters"
-                : role === "attending"
-                  ? "Explore tasks"
-                  : "Create event"}
+              {role === "attending" ? "Explore tasks" : "Create event"}
             </button>
           </div>
         )}
