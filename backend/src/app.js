@@ -3,7 +3,11 @@ const cors = require('cors');
 const morgan = require('morgan');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
+<<<<<<< HEAD
 const memoriesRoutes = require('./routes/memories');
+=======
+const eventRoutes = require('./routes/events');
+>>>>>>> 914f33b39a3018a439b5a0806c9ac0d65125cc52
 
 const app = express();
 
@@ -17,7 +21,11 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+<<<<<<< HEAD
 app.use('/api/memories', memoriesRoutes);
+=======
+app.use('/api/events', eventRoutes);
+>>>>>>> 914f33b39a3018a439b5a0806c9ac0d65125cc52
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Not found.' });

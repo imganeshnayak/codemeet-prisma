@@ -8,6 +8,7 @@ import {
   ProfileUpdate,
   profileApi,
   storeToken,
+  eventsApi,
 } from "./api"
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
@@ -1582,6 +1583,31 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!getStoredToken()) return
+
+    let cancelled = false
+    eventsApi
+      .listMine()
+      .then(({ events: storedEvents }) => {
+        if (cancelled) return
+        setEvents((current) => {
+          const existingIds = new Set(current.map((event) => event.id))
+          return [
+            ...current,
+            ...storedEvents.filter((event) => !existingIds.has(event.id)),
+          ]
+        })
+      })
+      .catch(() => {
+        console.error("Could not load persisted events; showing hardcoded events.")
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   function navigateApp(destination: AppScreen) {
     setScreen(destination)
   }
@@ -1632,19 +1658,11 @@ export default function App() {
     return (
       <CreateEvent
         onBack={() => setScreen(createOrigin)}
-        onCreated={(createdEvent: CreateEventInput) => {
-          const id = `created-event-${Date.now()}`
-          const nextEvent: SevaEvent = {
-            ...createdEvent,
-            id,
-            role: "organizing",
-            status: "Upcoming",
-            organizer: profile.name,
-            volunteers: 0,
-            tasks: 0,
-          }
+        onCreated={async (createdEvent: CreateEventInput) => {
+          const { event } = await eventsApi.create(createdEvent)
+          const nextEvent: SevaEvent = event
           setEvents((current) => [nextEvent, ...current])
-          setSelectedEventId(id)
+          setSelectedEventId(nextEvent.id)
           setScreen("event-volunteers")
         }}
       />

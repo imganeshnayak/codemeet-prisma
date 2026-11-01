@@ -15,6 +15,7 @@ export type ProfileUpdate = Pick<
   "name" | "email" | "location" | "bio" | "interests"
 >
 
+<<<<<<< HEAD
 export type ApiMemory = {
   id: string
   label: string
@@ -24,6 +25,25 @@ export type ApiMemory = {
   likesCount?: number
   liked?: boolean
   createdAt?: string
+=======
+export type ApiEvent = {
+  id: string
+  role: "attending" | "organizing"
+  title: string
+  description: string
+  category: string
+  date: string
+  time: string
+  location: string
+  capacity: number
+  skills: string
+  image: string
+  status: "Upcoming" | "Ongoing" | "Completed"
+  organizer: string
+  assignment?: string
+  volunteers: number
+  tasks: number
+>>>>>>> 914f33b39a3018a439b5a0806c9ac0d65125cc52
 }
 
 export type AuthInput = {
@@ -34,6 +54,8 @@ export type AuthInput = {
 
 type AuthResponse = { token: string; user: ApiUser }
 type UserResponse = { user: ApiUser }
+type EventsResponse = { events: ApiEvent[] }
+type EventResponse = { event: ApiEvent }
 
 const API_URL = (
   import.meta.env.VITE_API_URL ?? "http://localhost:5000/api"
@@ -166,4 +188,19 @@ export const profileApi = {
   },
   removePhoto: () =>
     request<UserResponse>("/profile/photo", { method: "DELETE" }),
+}
+
+export const eventsApi = {
+  listMine: () => request<EventsResponse>("/events/mine"),
+  create: (input: {
+    title: string
+    description: string
+    category: string
+    date: string
+    time: string
+    location: string
+    capacity: number
+    skills: string
+    image: string
+  }) => request<EventResponse>("/events", { method: "POST", body: input }),
 }
