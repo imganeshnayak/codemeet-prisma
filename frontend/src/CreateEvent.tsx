@@ -89,14 +89,39 @@ export default function CreateEvent({
   return (
     <main className="create-event-page">
       <section className="relative z-10 h-[85px] px-[25px]">
-        <h1 className="font-['Arimo:Bold'] text-[24px] font-bold">
-          Create Event
-        </h1>
-        <p className="mt-1 w-[245px] font-['Arimo:Regular'] text-[12px] leading-[1.25]">
-          Organize a meaningful event and bring
-          <br />
-          volunteers together for a real impact.
-        </p>
+        <div className="flex items-start gap-3">
+          <button
+            aria-label="Go back"
+            className="mt-[-3px] flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#d5c9e1] bg-white text-[#18151d] shadow-sm transition hover:bg-[#f7efff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9036cd]"
+            onClick={onBack}
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M19 12H5m0 0 7 7m-7-7 7-7"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+              />
+            </svg>
+          </button>
+          <div>
+            <h1 className="font-['Arimo:Bold'] text-[24px] font-bold">
+              Create Event
+            </h1>
+            <p className="mt-1 w-[245px] font-['Arimo:Regular'] text-[12px] leading-[1.25]">
+              Organize a meaningful event and bring
+              <br />
+              volunteers together for a real impact.
+            </p>
+          </div>
+        </div>
         <div className="event-illustration">
           <img alt="" src={asset("3bb07.svg")} />
           <img alt="" src={asset("7f547.svg")} />
