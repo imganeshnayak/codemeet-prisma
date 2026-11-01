@@ -1,17 +1,12 @@
 const express = require('express');
 const Article = require('../models/Article');
 const { optionalAuth } = require('../middleware/auth');
-const seedArticles = require('../data/seedArticles');
 
 const router = express.Router();
 
-// GET /api/articles - List all articles, auto-seed if collection is empty
+// GET /api/articles - List all real articles from DB
 router.get('/', async (req, res, next) => {
   try {
-    let count = await Article.countDocuments();
-    if (count === 0) {
-      await Article.insertMany(seedArticles);
-    }
     const articles = await Article.find().sort({ createdAt: -1 }).exec();
     return res.json({ articles: articles.map((a) => a.toPublicJSON()) });
   } catch (error) {
@@ -56,51 +51,47 @@ router.post('/', optionalAuth, async (req, res, next) => {
         .join('')
         .toUpperCase()
         .slice(0, 2) ||
-      'AS';
+      'VO';
 
-    const newArticle = await Article.create({
+    const article = await Article.create({
       title: b.title.trim(),
-      category: b.category ? b.category.trim() : 'Green Initiative',
+      alt: b.alt?.trim() || b.title.trim(),
+      category: b.category?.trim() || 'Community Action',
+      image: b.image,
+      meta: b.meta?.trim() || 'Just now',
       description: b.description.trim(),
-      image: b.image.trim(),
-      alt: b.alt ? b.alt.trim() : b.title.trim(),
-      meta: b.meta ? b.meta.trim() : 'Just now · Local Community',
-      readTime: b.readTime ? b.readTime.trim() : '3 min read',
-      quote: b.quote ? b.quote.trim() : '',
+      readTime: b.readTime || '3 min read',
+      quote: b.quote?.trim() || '',
       content: Array.isArray(b.content) && b.content.length > 0 ? b.content : [b.description.trim()],
       organizer: {
         name: authorName,
         avatar: authorAvatar,
-        verified: req.user ? true : Boolean(organizerData.verified),
-        role: organizerData.role || (req.user ? 'Verified Member' : 'Community Volunteer'),
+        verified: true,
+        role: organizerData.role || 'Active Volunteer',
       },
       stats: Array.isArray(b.stats) ? b.stats : [],
-      geoTag: b.geoTag || {
-        location: b.location || 'Karnataka, India',
-        verified: true,
-      },
-      relatedEvent: b.relatedEvent || undefined,
-      comments: Array.isArray(b.comments) ? b.comments : [],
-      authorId: req.user?._id,
+      geoTag: b.geoTag || {},
+      relatedEvent: b.relatedEvent || {},
+      comments: [],
+      likesCount: 0,
+      authorId: req.user?._id || null,
     });
 
-    return res.status(201).json({ article: newArticle.toPublicJSON() });
+    return res.status(201).json({ article: article.toPublicJSON() });
   } catch (error) {
     return next(error);
   }
 });
 
 // POST /api/articles/:id/like - Like an article
-router.post('/:id/like', async (req, res, next) => {
+router.post('/:id/like', optionalAuth, async (req, res, next) => {
   try {
-    const article = await Article.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { likesCount: 1 } },
-      { new: true }
-    );
+    const article = await Article.findById(req.params.id);
     if (!article) {
       return res.status(404).json({ message: 'Article not found.' });
     }
+    article.likesCount = (article.likesCount || 0) + 1;
+    await article.save();
     return res.json({ success: true, likesCount: article.likesCount });
   } catch (error) {
     return next(error);
@@ -110,36 +101,34 @@ router.post('/:id/like', async (req, res, next) => {
 // POST /api/articles/:id/comments - Add comment to an article
 router.post('/:id/comments', optionalAuth, async (req, res, next) => {
   try {
-    const { text, author } = req.body || {};
-    if (!text || !text.trim()) {
-      return res.status(400).json({ message: 'Comment text cannot be empty.' });
-    }
-
-    const commentAuthor = req.user?.name || author || 'Community Supporter';
-    const avatar = commentAuthor
-      .split(' ')
-      .map((p) => p[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-
-    const newComment = {
-      id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-      author: commentAuthor,
-      avatar: avatar || 'CS',
-      time: 'Just now',
-      text: text.trim(),
-    };
-
-    const article = await Article.findByIdAndUpdate(
-      req.params.id,
-      { $push: { comments: newComment } },
-      { new: true }
-    );
-
+    const article = await Article.findById(req.params.id);
     if (!article) {
       return res.status(404).json({ message: 'Article not found.' });
     }
+    const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+    if (!text) {
+      return res.status(400).json({ message: 'Comment text cannot be empty.' });
+    }
+
+    const authorName = req.user?.name || req.body?.author || 'Community Member';
+    const avatar =
+      authorName
+        .split(' ')
+        .map((p) => p[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || 'CM';
+
+    const newComment = {
+      id: `c_${Date.now()}`,
+      author: authorName,
+      avatar,
+      time: 'Just now',
+      text,
+    };
+
+    article.comments = [...(article.comments || []), newComment];
+    await article.save();
 
     return res.status(201).json({
       comment: newComment,

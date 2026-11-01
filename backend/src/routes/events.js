@@ -121,6 +121,46 @@ router.get('/mine', async (req, res) => {
   }
 });
 
+// GET /api/events/:id/volunteers - List volunteers for organizers and joined volunteers
+router.get('/:id/volunteers', async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found.' });
+    }
+
+    const isOrganizer = event.organizerId.equals(req.user._id);
+    const isVolunteer = await EventParticipation.exists({
+      eventId: event._id,
+      userId: req.user._id,
+    });
+    if (!isOrganizer && !isVolunteer) {
+      return res.status(403).json({ message: 'Join this event to view its volunteers.' });
+    }
+
+    const participations = await EventParticipation.find({ eventId: event._id })
+      .populate('userId', 'name photoUrl location')
+      .sort({ createdAt: 1 })
+      .exec();
+
+    return res.json({
+      volunteers: participations
+        .filter((participation) => participation.userId)
+        .map((participation) => ({
+          id: participation.userId._id.toString(),
+          name: participation.userId.name,
+          photoUrl: participation.userId.photoUrl || '',
+          location: participation.userId.location || '',
+          assignment: participation.assignment || 'Volunteer',
+          joinedAt: participation.createdAt,
+        })),
+    });
+  } catch (err) {
+    console.error('Failed to list event volunteers:', err);
+    return res.status(500).json({ message: 'Failed to fetch event volunteers.' });
+  }
+});
+
 // POST /api/events - Create a new volunteer event
 router.post('/', async (req, res) => {
   try {

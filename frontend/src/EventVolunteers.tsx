@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatEventDate, SevaEvent } from "./events";
-import { ApiTaskSubmission, rewardsApi } from "./api";
+import { ApiTaskSubmission, ApiVolunteer, eventsApi, rewardsApi } from "./api";
 
 const assetPathPrefix = "/assets";
 const imgProfile = `${assetPathPrefix}/80e95.png`;
@@ -29,19 +29,30 @@ const imgCheck = `${assetPathPrefix}/1305a.svg`;
 const imgMapPin = `${assetPathPrefix}/aab5e.svg`;
 const imgCalendarDays = `${assetPathPrefix}/ff614.svg`;
 const imgUsers = `${assetPathPrefix}/099e6.svg`;
-const imgActiveIndicator = `${assetPathPrefix}/73423.svg`;
 const imgClipboardCheck = `${assetPathPrefix}/5a93a.svg`;
 const imgImage = `${assetPathPrefix}/375ff.svg`;
 const imgChevronDown = `${assetPathPrefix}/3beea.svg`;
 const imgPhone = `${assetPathPrefix}/f21eb.svg`;
 const imgMessageSquare = `${assetPathPrefix}/f98c3.svg`;
 
-export default function EventVolunteers({ event, onBack, onAssignments, onPhotos }: { event: SevaEvent; onBack: () => void; onAssignments: () => void; onPhotos: () => void }) {
+export default function EventVolunteers({ event, onBack, onAssignments, onPhotos, onVolunteers, onCommunity, showNavigationTabs = true, readOnly = false }: { event: SevaEvent; onBack: () => void; onAssignments: () => void; onPhotos: () => void; onVolunteers?: () => void; onCommunity?: () => void; showNavigationTabs?: boolean; readOnly?: boolean }) {
   const [submissions, setSubmissions] = useState<ApiTaskSubmission[]>([]);
+  const [volunteers, setVolunteers] = useState<ApiVolunteer[]>([]);
+  const [volunteerLoading, setVolunteerLoading] = useState(false);
+  const [volunteerError, setVolunteerError] = useState("");
   const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     if (!/^[a-f\d]{24}$/i.test(event.id)) return;
+    setVolunteerLoading(true);
+    setVolunteerError("");
+    eventsApi.listVolunteers(event.id)
+      .then(({ volunteers: next }) => setVolunteers(next))
+      .catch((error) => {
+        setVolunteers([]);
+        setVolunteerError(error instanceof Error ? error.message : "Could not load volunteers.");
+      })
+      .finally(() => setVolunteerLoading(false));
     rewardsApi.listSubmissions(event.id)
       .then(({ submissions: next }) => setSubmissions(next))
       .catch(() => setSubmissions([]));
@@ -194,186 +205,100 @@ export default function EventVolunteers({ event, onBack, onAssignments, onPhotos
           </div>
         </div>
         <div className="content-stretch flex flex-col gap-[18px] items-start px-[3px] relative shrink-0 w-full" data-node-id="174:12013" data-name="Event management">
-          <div className="content-stretch flex gap-[9px] items-start relative shrink-0 w-full" data-node-id="174:12014" data-name="Event navigation">
-            <div className="bg-[#933bc4] border border-[#933bc4] border-solid content-stretch drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12015" data-name="Event tab">
-              <div className="relative shrink-0 size-[28px]" data-node-id="174:12502" data-name="users">
-                <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgUsers} />
-              </div>
-              <div className="content-stretch flex flex-col items-center overflow-clip relative shrink-0" data-node-id="174:12017" data-name="Tab label">
-                <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[15px] text-white whitespace-nowrap" data-node-id="174:12018">
-                  1. Volunteers
-                </p>
-              </div>
-              <div className="-translate-x-1/2 absolute bottom-[-9px] h-[9px] left-[calc(50%-0.67px)] w-[22px]" data-node-id="174:12019" data-name="Active indicator">
-                <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgActiveIndicator} />
-              </div>
-            </div>
-            <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] cursor-pointer flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12020" data-name="Event tab" onClick={onAssignments} role="button" tabIndex={0}>
-              <div className="relative shrink-0 size-[28px]" data-node-id="174:12505" data-name="clipboard-check">
-                <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgClipboardCheck} />
-              </div>
-              <div className="content-stretch flex flex-col items-center overflow-clip relative shrink-0" data-node-id="174:12022" data-name="Tab label">
-                <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[15px] whitespace-nowrap" data-node-id="174:12023">
-                  2. Task Assignments
-                </p>
-              </div>
-            </div>
-            <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch cursor-pointer drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12024" data-name="Event tab" onClick={onPhotos} role="button" tabIndex={0}>
-              <div className="relative shrink-0 size-[28px]" data-node-id="174:12508" data-name="image">
-                <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgImage} />
-              </div>
-              <div className="[word-break:break-word] content-stretch flex flex-col gap-px items-center leading-[normal] overflow-clip relative shrink-0 text-[#09090b] whitespace-nowrap" data-node-id="174:12026" data-name="Tab label">
-                <p className="font-['Arimo:Bold'] font-bold relative shrink-0 text-[15px]" data-node-id="174:12027">
-                  3. Event Photos
-                </p>
-                <p className="font-['Arimo:Regular'] font-normal relative shrink-0 text-[13px]" data-node-id="174:12028">
-                  (Geo-Tag)
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch flex flex-col items-start overflow-clip pb-[8px] pt-[10px] px-[16px] relative rounded-[15px] shrink-0 w-full" data-node-id="174:12029" data-name="Accepted volunteers">
-            <div className="content-stretch flex h-[40px] items-center justify-between overflow-clip relative shrink-0 w-full" data-node-id="174:12030" data-name="List header">
-              <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[19px] whitespace-nowrap" data-node-id="174:12031">
-                Accepted Volunteers ({event.volunteers})
-              </p>
-              <div className="bg-[#fcf8ff] border border-[#d5c9e1] border-solid content-stretch flex gap-[9px] items-center overflow-clip px-[12px] py-[7px] relative rounded-[100px] shrink-0" data-node-id="174:12032" data-name="Status filter">
-                <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[13px] whitespace-nowrap" data-node-id="174:12033">
-                  Accepted
-                </p>
-                <div className="relative shrink-0 size-[14px]" data-node-id="174:12511" data-name="chevron-down">
-                  <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgChevronDown} />
+          {readOnly && onCommunity && (
+            <button
+              className="flex w-full items-center justify-center gap-2 rounded-[15px] border border-[#d5c9e1] bg-[#933bc4] px-4 py-4 font-['Arimo:Bold'] text-[15px] text-white"
+              onClick={onCommunity}
+              type="button"
+            >
+              <img alt="" className="size-6 brightness-0 invert" src={imgMessageSquare} />
+              Open community messages
+            </button>
+          )}
+          <div className={showNavigationTabs && !readOnly ? "content-stretch flex flex-col gap-[9px] items-start relative shrink-0 w-full" : "hidden"} data-node-id="174:12014" data-name="Event navigation">
+            <div className="content-stretch flex gap-[9px] items-start relative shrink-0 w-full">
+              <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch cursor-pointer drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12015" data-name="Event tab" onClick={onVolunteers} role="button" tabIndex={0}>
+                <div className="relative shrink-0 size-[28px]" data-node-id="174:12502" data-name="users">
+                  <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgUsers} style={{ filter: "brightness(0) saturate(100%) invert(30%) sepia(63%) saturate(1800%) hue-rotate(258deg) brightness(88%) contrast(95%)" }} />
                 </div>
-              </div>
-            </div>
-            <div className="content-stretch flex flex-col items-start overflow-clip relative shrink-0 w-full" data-node-id="174:12035" data-name="Volunteer">
-              <div className="content-stretch flex gap-[12px] h-[63px] items-center overflow-clip relative shrink-0 w-full" data-node-id="174:12036" data-name="Volunteer details">
-                <div className="relative shrink-0 size-[53px]" data-node-id="174:12037" data-name="Portrait">
-                  <img alt="" className="absolute block inset-0 max-w-none size-full" height="53" src={imgPortrait} width="53" />
-                </div>
-                <div className="content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px overflow-clip relative" data-node-id="174:12038" data-name="Identity">
-                  <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[16px] whitespace-nowrap" data-node-id="174:12039">
-                    Disha J Kotian
+                <div className="content-stretch flex flex-col items-center overflow-clip relative shrink-0" data-node-id="174:12017" data-name="Tab label">
+                  <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[15px] text-[#09090b] whitespace-nowrap" data-node-id="174:12018">
+                    1. Volunteers
                   </p>
-                  <div className="bg-[#ead5f8] content-stretch flex items-start overflow-clip px-[9px] py-[3px] relative rounded-[100px] shrink-0" data-node-id="174:12040" data-name="Role badge">
-                    <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#6606ae] text-[11px] whitespace-nowrap" data-node-id="174:12041">
-                      Volunteer
-                    </p>
-                  </div>
-                </div>
-                <div className="content-stretch flex gap-[9px] items-start overflow-clip relative shrink-0" data-node-id="174:12042" data-name="Contact actions">
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12043" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12514" data-name="phone">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgPhone} />
-                    </div>
-                  </div>
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12045" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12517" data-name="message-square">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgMessageSquare} />
-                    </div>
-                  </div>
                 </div>
               </div>
-              <div className="content-stretch flex items-start overflow-clip pl-[53px] relative shrink-0 w-full" data-node-id="174:12047" data-name="Row divider">
-                <div className="bg-[#d5c9e1] flex-[1_0_0] h-[0.8px] min-w-px relative" data-node-id="174:12048" data-name="Divider" />
+              <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] cursor-pointer flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12020" data-name="Event tab" onClick={onAssignments} role="button" tabIndex={0}>
+                <div className="relative shrink-0 size-[28px]" data-node-id="174:12505" data-name="clipboard-check">
+                  <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgClipboardCheck} />
+                </div>
+                <div className="content-stretch flex flex-col items-center overflow-clip relative shrink-0" data-node-id="174:12022" data-name="Tab label">
+                  <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[15px] whitespace-nowrap" data-node-id="174:12023">
+                    2. Task Assignments
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="content-stretch flex flex-col items-start overflow-clip relative shrink-0 w-full" data-node-id="174:12049" data-name="Volunteer">
-              <div className="content-stretch flex gap-[12px] h-[63px] items-center overflow-clip relative shrink-0 w-full" data-node-id="174:12050" data-name="Volunteer details">
-                <div className="relative shrink-0 size-[53px]" data-node-id="174:12051" data-name="Portrait">
-                  <img alt="" className="absolute block inset-0 max-w-none size-full" height="53" src={imgPortrait1} width="53" />
+            <div className="content-stretch flex gap-[9px] items-start relative shrink-0 w-full">
+              <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch cursor-pointer drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12024" data-name="Event tab" onClick={onPhotos} role="button" tabIndex={0}>
+                <div className="relative shrink-0 size-[28px]" data-node-id="174:12508" data-name="image">
+                  <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgImage} />
                 </div>
-                <div className="content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px overflow-clip relative" data-node-id="174:12052" data-name="Identity">
-                  <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[16px] whitespace-nowrap" data-node-id="174:12053">
-                    Chaithali R Shettigar
+                <div className="[word-break:break-word] content-stretch flex flex-col gap-px items-center leading-[normal] overflow-clip relative shrink-0 text-[#09090b] whitespace-nowrap" data-node-id="174:12026" data-name="Tab label">
+                  <p className="font-['Arimo:Bold'] font-bold relative shrink-0 text-[15px]" data-node-id="174:12027">
+                    3. Event Photos
                   </p>
-                  <div className="bg-[#ead5f8] content-stretch flex items-start overflow-clip px-[9px] py-[3px] relative rounded-[100px] shrink-0" data-node-id="174:12054" data-name="Role badge">
-                    <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#6606ae] text-[11px] whitespace-nowrap" data-node-id="174:12055">
-                      Volunteer
-                    </p>
-                  </div>
-                </div>
-                <div className="content-stretch flex gap-[9px] items-start overflow-clip relative shrink-0" data-node-id="174:12056" data-name="Contact actions">
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12057" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12520" data-name="phone">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgPhone} />
-                    </div>
-                  </div>
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12059" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12523" data-name="message-square">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgMessageSquare} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="content-stretch flex items-start overflow-clip pl-[53px] relative shrink-0 w-full" data-node-id="174:12061" data-name="Row divider">
-                <div className="bg-[#d5c9e1] flex-[1_0_0] h-[0.8px] min-w-px relative" data-node-id="174:12062" data-name="Divider" />
-              </div>
-            </div>
-            <div className="content-stretch flex flex-col items-start overflow-clip relative shrink-0 w-full" data-node-id="174:12063" data-name="Volunteer">
-              <div className="content-stretch flex gap-[12px] h-[63px] items-center overflow-clip relative shrink-0 w-full" data-node-id="174:12064" data-name="Volunteer details">
-                <div className="relative shrink-0 size-[53px]" data-node-id="174:12065" data-name="Portrait">
-                  <img alt="" className="absolute block inset-0 max-w-none size-full" height="53" src={imgPortrait2} width="53" />
-                </div>
-                <div className="content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px overflow-clip relative" data-node-id="174:12066" data-name="Identity">
-                  <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[16px] whitespace-nowrap" data-node-id="174:12067">
-                    H Megha
+                  <p className="font-['Arimo:Regular'] font-normal relative shrink-0 text-[13px]" data-node-id="174:12028">
+                    (Geo-Tag)
                   </p>
-                  <div className="bg-[#ead5f8] content-stretch flex items-start overflow-clip px-[9px] py-[3px] relative rounded-[100px] shrink-0" data-node-id="174:12068" data-name="Role badge">
-                    <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#6606ae] text-[11px] whitespace-nowrap" data-node-id="174:12069">
-                      Volunteer
-                    </p>
-                  </div>
-                </div>
-                <div className="content-stretch flex gap-[9px] items-start overflow-clip relative shrink-0" data-node-id="174:12070" data-name="Contact actions">
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12071" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12526" data-name="phone">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgPhone} />
-                    </div>
-                  </div>
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12073" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12529" data-name="message-square">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgMessageSquare} />
-                    </div>
-                  </div>
                 </div>
               </div>
-              <div className="content-stretch flex items-start overflow-clip pl-[53px] relative shrink-0 w-full" data-node-id="174:12075" data-name="Row divider">
-                <div className="bg-[#d5c9e1] flex-[1_0_0] h-[0.8px] min-w-px relative" data-node-id="174:12076" data-name="Divider" />
-              </div>
-            </div>
-            <div className="content-stretch flex flex-col items-start overflow-clip relative shrink-0 w-full" data-node-id="174:12077" data-name="Volunteer">
-              <div className="content-stretch flex gap-[12px] h-[63px] items-center overflow-clip relative shrink-0 w-full" data-node-id="174:12078" data-name="Volunteer details">
-                <div className="relative shrink-0 size-[53px]" data-node-id="174:12079" data-name="Portrait">
-                  <img alt="" className="absolute block inset-0 max-w-none size-full" height="53" src={imgPortrait3} width="53" />
+              <div className="bg-[#fffcff] border border-[#d5c9e1] border-solid content-stretch cursor-pointer drop-shadow-[0px_2px_3.5px_rgba(117,34,171,0.07)] flex flex-[1_0_0] flex-col gap-[8px] h-[90px] items-center justify-center min-w-px relative rounded-[15px]" data-node-id="174:12029" data-name="Event tab" onClick={onCommunity} role="button" tabIndex={0}>
+                <div className="relative shrink-0 size-[28px]" data-node-id="174:12509" data-name="message-square">
+                  <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgMessageSquare} />
                 </div>
-                <div className="content-stretch flex flex-[1_0_0] flex-col gap-[3px] items-start min-w-px overflow-clip relative" data-node-id="174:12080" data-name="Identity">
-                  <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#09090b] text-[16px] whitespace-nowrap" data-node-id="174:12081">
-                    Darsha B Shetty
+                <div className="[word-break:break-word] content-stretch flex flex-col gap-px items-center leading-[normal] overflow-clip relative shrink-0 text-[#09090b] whitespace-nowrap" data-node-id="174:12030" data-name="Tab label">
+                  <p className="font-['Arimo:Bold'] font-bold relative shrink-0 text-[15px]" data-node-id="174:12031">
+                    4. Community
                   </p>
-                  <div className="bg-[#ead5f8] content-stretch flex items-start overflow-clip px-[9px] py-[3px] relative rounded-[100px] shrink-0" data-node-id="174:12082" data-name="Role badge">
-                    <p className="[word-break:break-word] font-['Arimo:Bold'] font-bold leading-[normal] relative shrink-0 text-[#6606ae] text-[11px] whitespace-nowrap" data-node-id="174:12083">
-                      Volunteer
-                    </p>
-                  </div>
-                </div>
-                <div className="content-stretch flex gap-[9px] items-start overflow-clip relative shrink-0" data-node-id="174:12084" data-name="Contact actions">
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12085" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12532" data-name="phone">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgPhone} />
-                    </div>
-                  </div>
-                  <div className="border border-[#d5c9e1] border-solid content-stretch flex h-[32px] items-center justify-center overflow-clip relative rounded-[100px] shrink-0 w-[40px]" data-node-id="174:12087" data-name="Contact action">
-                    <div className="relative shrink-0 size-[19px]" data-node-id="174:12535" data-name="message-square">
-                      <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgMessageSquare} />
-                    </div>
-                  </div>
+                  <p className="font-['Arimo:Regular'] font-normal relative shrink-0 text-[13px]" data-node-id="174:12032">
+                    (Chat)
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        {submissions.length > 0 && (
+        <section className="w-full rounded-[18px] border border-[#d5c9e1] bg-white p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-['Arimo:Bold'] text-[18px] font-bold text-[#29115e]">Volunteers</h2>
+            <span className="text-sm text-[#756c7b]">{volunteers.length}/{event.capacity}</span>
+          </div>
+          {volunteerLoading && <p className="mt-3 text-sm text-[#756c7b]">Loading volunteers...</p>}
+          {!volunteerLoading && volunteerError && <p className="mt-3 text-sm text-red-600" role="alert">{volunteerError}</p>}
+          {!volunteerLoading && !volunteerError && volunteers.length === 0 && (
+            <p className="mt-3 text-sm text-[#756c7b]">No volunteers have joined this event yet.</p>
+          )}
+          {!volunteerLoading && !volunteerError && volunteers.length > 0 && (
+            <div className="mt-3 flex flex-col gap-3">
+              {volunteers.map((volunteer) => (
+                <div className="flex items-center gap-3 border-t border-[#eadcf3] pt-3" key={volunteer.id}>
+                  {volunteer.photoUrl ? (
+                    <img alt="" className="h-12 w-12 rounded-full object-cover" src={volunteer.photoUrl} />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#ead5f8] font-bold text-[#6606ae]">
+                      {volunteer.name.slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-[#09090b]">{volunteer.name}</p>
+                    <p className="text-xs text-[#756c7b]">{volunteer.assignment}{volunteer.location ? ` · ${volunteer.location}` : ""}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+        {!readOnly && submissions.length > 0 && (
           <section className="w-full rounded-[18px] border border-[#d5c9e1] bg-white p-4">
             <h2 className="font-['Arimo:Bold'] text-[18px] font-bold text-[#29115e]">Task proof approvals</h2>
             <div className="mt-3 flex flex-col gap-3">

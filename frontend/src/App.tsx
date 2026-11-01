@@ -26,17 +26,19 @@ import PixelLeaderboard from "./PixelLeaderboard"
 import SwipeDonation from "./SwipeDonation"
 import CreateEvent from "./CreateEvent"
 import EventVolunteers from "./EventVolunteers"
+import AcceptedVolunteers from "./AcceptedVolunteers"
 import TaskAssignments from "./TaskAssignments"
+import EventCommunity from "./EventCommunity"
 import MyEvents from "./MyEvents"
 import HomeScreen from "./HomeScreen"
 import NavigationIcon from "./NavigationIcon"
 import {
   CreateEventInput,
-  initialEvents,
   SevaEvent,
 } from "./events"
 
-type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "task-assignments" | "donation-tracker" | "donate-feed" | "donation-campaign-admin" | "my-events"
+type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "accepted-volunteers" | "task-assignments" | "event-community" | "donation-tracker" | "donate-feed" | "donation-campaign-admin" | "my-events"
+type EventPage = "event-volunteers" | "task-assignments" | "event-photos" | "event-community"
 type AppScreen = "home" | "tasks" | "arena" | "memories" | "profile" | "my-events"
 type IconName = "arrow" | "award" | "back" | "bell" | "bolt" | "calendar" | "camera" | "chart" | "check" | "chevron" | "close" | "edit" | "eye" | "flame" | "heart" | "home" | "image" | "leaf" | "location" | "lock" | "mail" | "profile" | "settings" | "shield" | "spark" | "star" | "target" | "tasks" | "trophy" | "users"
 
@@ -73,6 +75,25 @@ function initialsFromName(name: string) {
   )
 }
 
+function getEventPageFromHash(): { screen: EventPage; eventId: string } | null {
+  if (typeof window === "undefined") return null
+
+  const [route, query = ""] = window.location.hash.slice(1).split("?")
+  if (
+    route !== "event-volunteers" &&
+    route !== "task-assignments" &&
+    route !== "event-photos" &&
+    route !== "event-community"
+  ) {
+    return null
+  }
+
+  return {
+    screen: route,
+    eventId: new URLSearchParams(query).get("eventId") ?? "",
+  }
+}
+
 type Task = {
   id?: string
   creatorId?: string
@@ -89,62 +110,6 @@ type Task = {
   image: string
   donation?: boolean
 }
-
-const tasks: Task[] = [
-  {
-    category: "Environment",
-    title: "Tree Plantation Drive",
-    location: "Mangaluru, Karnataka",
-    description:
-      "Join our green initiative to plant trees and help create a cleaner, healthier environment for future generations.",
-    date: "Sat, 12 Oct 2025",
-    time: "9:00 AM – 12:00 PM",
-    volunteers: "15",
-    points: "50",
-    days: "3 days left",
-    image: "/assets/task-tree.jpg",
-  },
-  {
-    category: "Clothes Drive",
-    title: "Warm Clothes for Kids",
-    location: "Udupi, Karnataka",
-    description:
-      "Help children in need with clean and comfortable clothes this season.",
-    date: "Sat, 18 Oct 2025",
-    time: "9:00 AM – 1:00 PM",
-    volunteers: "85",
-    points: "72",
-    days: "Create event",
-    image: "/assets/d7a6c.png",
-    donation: true,
-  },
-  {
-    category: "Community",
-    title: "Community Garden Day",
-    location: "Bengaluru, Karnataka",
-    description:
-      "Help neighbours prepare shared garden beds and grow fresh food for families across the community.",
-    date: "Sun, 20 Oct 2025",
-    time: "8:30 AM – 11:30 AM",
-    volunteers: "24",
-    points: "65",
-    days: "6 days left",
-    image: "/assets/task-garden.jpg",
-  },
-  {
-    category: "Conservation",
-    title: "Forest Care Weekend",
-    location: "Coorg, Karnataka",
-    description:
-      "Work alongside local volunteers to restore native plants and care for a growing community forest.",
-    date: "Sat, 2 Nov 2025",
-    time: "10:00 AM – 2:00 PM",
-    volunteers: "18",
-    points: "80",
-    days: "9 days left",
-    image: "/assets/task-forest.jpg",
-  },
-]
 
 function Icon({
   name,
@@ -563,12 +528,14 @@ function TaskCard({
   className = "",
   onOpenProof,
   onInterest,
+  onJoin,
   onTrack,
 }: {
   task: Task
   className?: string
   onOpenProof?: () => void
   onInterest?: () => void
+  onJoin?: () => void
   onTrack?: () => void
 }) {
   return (
@@ -661,6 +628,18 @@ function TaskCard({
             </button>
           )}
         </div>
+        {onJoin && task.id && (
+          <button
+            className="mt-4 w-full rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-4 py-3 font-outfit-bold text-sm shadow-[2px_2px_0_#18151d] transition hover:-translate-y-0.5"
+            onClick={(event) => {
+              event.stopPropagation()
+              onJoin()
+            }}
+            type="button"
+          >
+            Join as volunteer
+          </button>
+        )}
       </div>
     </article>
   )
@@ -717,6 +696,7 @@ function TasksScreen({
   onDislike,
   onOpenTask,
   onLikeTask,
+  onJoinTask,
   onLogout,
   onNavigate,
   onOpenProof,
@@ -730,6 +710,7 @@ function TasksScreen({
   onDislike: (task: Task) => void
   onOpenTask: (task: Task) => void
   onLikeTask: (task: Task) => void
+  onJoinTask: (task: Task) => void
   onLogout: () => void
   onNavigate: (screen: AppScreen) => void
   onOpenProof: (task: Task) => void
@@ -882,6 +863,7 @@ function TasksScreen({
             >
               <TaskCard
                 onInterest={() => onLikeTask(task)}
+                onJoin={() => onJoinTask(task)}
                 onOpenProof={onOpenProof}
                 onTrack={() => onOpenTask(task)}
                 task={task}
@@ -1700,13 +1682,16 @@ function campaignToTask(c: ApiDonationCampaign): Task {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("home")
+  const [screen, setScreen] = useState<Screen>(() => {
+    const eventPage = getEventPageFromHash()
+    return getStoredToken() && eventPage ? eventPage.screen : getStoredToken() ? "home" : "login"
+  })
   const [currentTask, setCurrentTask] = useState(0)
-  const [feedTasks, setFeedTasks] = useState<Task[]>(tasks)
+  const [feedTasks, setFeedTasks] = useState<Task[]>([])
   const [dislikedTaskTitles, setDislikedTaskTitles] = useState<string[]>([])
-  const [events, setEvents] = useState<SevaEvent[]>(initialEvents)
-  const [selectedEventId, setSelectedEventId] = useState(
-    "organizing-tree-drive",
+  const [events, setEvents] = useState<SevaEvent[]>([])
+  const [selectedEventId, setSelectedEventId] = useState(() =>
+    getEventPageFromHash()?.eventId || "organizing-tree-drive",
   )
   const [taskAssignmentsOrigin, setTaskAssignmentsOrigin] = useState<
     "tasks" | "my-events"
@@ -1746,6 +1731,43 @@ export default function App() {
   })
 
   useEffect(() => {
+    const applyHash = () => {
+      const h = window.location.hash.replace(/^#\/?/, "")
+      const valid: Screen[] = [
+        "login",
+        "register",
+        "home",
+        "tasks",
+        "arena",
+        "memories",
+        "profile",
+        "edit-profile",
+        "geo-proof",
+        "event-photos",
+        "swipe-donation",
+        "create-event",
+        "event-volunteers",
+        "task-assignments",
+        "event-community",
+        "donation-tracker",
+        "my-events",
+      ]
+      if (h && valid.includes(h as Screen)) {
+        setScreen(h as Screen)
+      }
+    }
+    applyHash()
+    window.addEventListener("hashchange", applyHash)
+    return () => window.removeEventListener("hashchange", applyHash)
+  }, [])
+
+  useEffect(() => {
+    if (window.location.hash.replace(/^#\/?/, "") !== screen) {
+      window.location.hash = screen
+    }
+  }, [screen])
+
+  useEffect(() => {
     if (!getStoredToken()) return
 
     let cancelled = false
@@ -1774,13 +1796,12 @@ export default function App() {
   }, [screen])
 
   const loadCommunityFeed = useCallback(async () => {
+    if (!profile.id) return
     try {
-      const [allEventsRes, tasksFeedRes, campaignsRes] = await Promise.allSettled([
+      const [allEventsRes, tasksFeedRes] = await Promise.allSettled([
         eventsApi.listAll(),
         tasksApi.listFeed(),
-        donationsApi.listCampaigns(),
       ]);
-
       const fetchedTasks: Task[] = [];
 
       if (allEventsRes.status === "fulfilled" && allEventsRes.value?.events) {
@@ -1792,14 +1813,10 @@ export default function App() {
             ...publicEvents.filter((e) => !existingIds.has(e.id)),
           ];
         });
-        for (const ev of publicEvents) {
-          fetchedTasks.push(eventToTask(ev));
-        }
-      }
-
-      if (campaignsRes.status === "fulfilled" && campaignsRes.value?.campaigns) {
-        for (const camp of campaignsRes.value.campaigns) {
-          fetchedTasks.push(campaignToTask(camp));
+        for (const event of publicEvents) {
+          if (event.role !== "organizing") {
+            fetchedTasks.push(eventToTask(event));
+          }
         }
       }
 
@@ -1807,18 +1824,19 @@ export default function App() {
         for (const t of tasksFeedRes.value.tasks) {
           fetchedTasks.push(t);
         }
+      } else if (tasksFeedRes.status === "rejected") {
+        console.error("Could not load authenticated task feed:", tasksFeedRes.reason)
       }
 
-      if (fetchedTasks.length > 0) {
-        // Put all live DB tasks front and center, with demo fallbacks at the end
-        const fetchedTitles = new Set(fetchedTasks.map((t) => t.title));
-        const remainingFallbacks = tasks.filter((h) => !fetchedTitles.has(h.title));
-        setFeedTasks([...fetchedTasks, ...remainingFallbacks]);
+      const uniqueTasks = new Map<string, Task>();
+      for (const task of fetchedTasks) {
+        uniqueTasks.set(task.id ?? `${task.title}-${task.date}`, task);
       }
+      setFeedTasks([...uniqueTasks.values()]);
     } catch (e) {
       console.error("Could not load community feed:", e);
     }
-  }, []);
+  }, [profile.id]);
 
   useEffect(() => {
     loadCommunityFeed();
@@ -1833,15 +1851,13 @@ export default function App() {
       .then(({ events: storedEvents }) => {
         if (cancelled) return
         setEvents((current) => {
-          const existingIds = new Set(current.map((event) => event.id))
-          return [
-            ...current,
-            ...storedEvents.filter((event) => !existingIds.has(event.id)),
-          ]
+          const byId = new Map(current.map((event) => [event.id, event]))
+          for (const event of storedEvents) byId.set(event.id, event)
+          return [...byId.values()]
         })
       })
-      .catch(() => {
-        console.error("Could not load persisted events; showing hardcoded events.")
+      .catch((error) => {
+        console.error("Could not load persisted events.", error)
       })
 
     return () => {
@@ -1863,11 +1879,9 @@ export default function App() {
     loadCommunityFeed()
     eventsApi.listMine().then(({ events: storedEvents }) => {
       setEvents((current) => {
-        const existingIds = new Set(current.map((event) => event.id))
-        return [
-          ...current,
-          ...storedEvents.filter((event) => !existingIds.has(event.id)),
-        ]
+        const byId = new Map(current.map((event) => [event.id, event]))
+        for (const event of storedEvents) byId.set(event.id, event)
+        return [...byId.values()]
       })
     }).catch(() => {})
     setScreen("home")
@@ -1877,7 +1891,7 @@ export default function App() {
     clearStoredToken()
     setCurrentTask(0)
     setDislikedTaskTitles([])
-    setFeedTasks(tasks)
+    setFeedTasks([])
     setScreen("login")
   }
   function openTask(task: Task, destination: "event-volunteers" | "my-events" = "event-volunteers") {
@@ -1947,7 +1961,35 @@ export default function App() {
     setScreen(destination)
   }
 
-  function handleTaskInterest(task: Task) {
+  async function handleTaskInterest(task: Task) {
+    if (task.id && task.creatorId !== profile.id) {
+      try {
+        const { event } = task.id.startsWith("event-") && task.eventId
+          ? await eventsApi.join(task.eventId)
+          : await tasksApi.join(task.id)
+        const joinedEvent: SevaEvent = event
+        setEvents((current) => [
+          joinedEvent,
+          ...current.filter((item) => item.id !== joinedEvent.id),
+        ])
+        setSelectedEventId(joinedEvent.id)
+        setEventVolunteersOrigin("tasks")
+        setScreen("my-events")
+      } catch (error) {
+        const message = error instanceof ApiError
+          ? error.message
+          : "Could not join this task."
+        setClashModal({
+          currentEvent: "",
+          targetEvent: task.title,
+          date: task.date,
+          time: task.time,
+          customMessage: message,
+        })
+      }
+      return
+    }
+
     if (task.creatorId && task.creatorId === profile.id) {
       const organizingEvent = events.find(
         (event) =>
@@ -2152,14 +2194,12 @@ export default function App() {
           const { event } = await eventsApi.create(createdEvent)
           const nextEvent: SevaEvent = event
           setEvents((current) => [nextEvent, ...current])
-          setFeedTasks((current) => [eventToTask(nextEvent), ...current])
           setSelectedEventId(nextEvent.id)
           setEventVolunteersOrigin(createOrigin)
           setScreen("event-volunteers")
         }}
         onCampaignCreated={(campaign) => {
           setSelectedCampaign(campaign)
-          setFeedTasks((current) => [campaignToTask(campaign), ...current])
           setScreen("donation-campaign-admin")
         }}
       />
@@ -2173,12 +2213,44 @@ export default function App() {
     return (
       <EventVolunteers
         event={selectedEvent}
+        readOnly={selectedEvent.role !== "organizing"}
         onAssignments={() => {
           setTaskAssignmentsOrigin(eventVolunteersOrigin)
           setScreen("task-assignments")
         }}
         onBack={() => setScreen(eventVolunteersOrigin)}
         onPhotos={() => setScreen("event-photos")}
+        onVolunteers={() => setScreen("accepted-volunteers")}
+        onCommunity={() => setScreen("event-community")}
+      />
+    )
+  }
+
+  if (screen === "accepted-volunteers") {
+    const selectedEvent =
+      events.find((event) => event.id === selectedEventId) ??
+      events.find((event) => event.role === "organizing")!
+    return (
+      <AcceptedVolunteers
+        event={selectedEvent}
+        onBack={() => setScreen("event-volunteers")}
+      />
+    )
+  }
+
+  if (screen === "event-community") {
+    const selectedEvent =
+      events.find((event) => event.id === selectedEventId) ??
+      events.find((event) => event.role === "organizing")!
+    return (
+      <EventCommunity
+        event={selectedEvent}
+        showNavigationTabs={false}
+        onAssignments={() => setScreen("task-assignments")}
+        onBack={() => setScreen("event-volunteers")}
+        onCommunity={() => setScreen("event-community")}
+        onPhotos={() => setScreen("event-photos")}
+        onVolunteers={() => setScreen("accepted-volunteers")}
       />
     )
   }
@@ -2187,15 +2259,32 @@ export default function App() {
     const selectedEvent =
       events.find((event) => event.id === selectedEventId) ??
       events.find((event) => event.role === "organizing")!
+    if (selectedEvent.role !== "organizing") {
+      return (
+        <EventVolunteers
+          event={selectedEvent}
+          readOnly
+          onBack={() => setScreen(eventVolunteersOrigin)}
+          onAssignments={() => setScreen("task-assignments")}
+          onPhotos={() => setScreen("event-photos")}
+          onVolunteers={() => setScreen("accepted-volunteers")}
+          onCommunity={() => setScreen("event-community")}
+        />
+      )
+    }
     return (
       <TaskAssignments
         event={selectedEvent}
+        showNavigationTabs={false}
+        onAssignments={() => setScreen("task-assignments")}
+        onBack={() => setScreen("event-volunteers")}
+        onCommunity={() => setScreen("event-community")}
         onTaskCreated={(task) => {
           setFeedTasks((current) => [...current, task])
         }}
         onBack={() => setScreen(taskAssignmentsOrigin)}
         onPhotos={() => setScreen("event-photos")}
-        onVolunteers={() => setScreen("event-volunteers")}
+        onVolunteers={() => setScreen("accepted-volunteers")}
       />
     )
   }
@@ -2330,9 +2419,7 @@ export default function App() {
         tasks={feedTasks}
         current={currentTask}
         dislikedTaskTitles={dislikedTaskTitles}
-        hiddenTaskIds={events
-          .filter((event) => event.role === "organizing")
-          .map((event) => event.id)}
+        hiddenTaskIds={[]}
         hiddenTaskCreatorId={profile.id || undefined}
         onRefresh={loadCommunityFeed}
         onLogout={() => setScreen("login")}
@@ -2350,6 +2437,7 @@ export default function App() {
         }}
         onOpenTask={openTask}
         onLikeTask={handleTaskInterest}
+        onJoinTask={handleTaskInterest}
       />
       </>
     )

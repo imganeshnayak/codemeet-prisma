@@ -98,6 +98,14 @@ type AuthResponse = { token: string; user: ApiUser }
 type UserResponse = { user: ApiUser }
 type EventsResponse = { events: ApiEvent[] }
 type EventResponse = { event: ApiEvent }
+export type ApiVolunteer = {
+  id: string
+  name: string
+  photoUrl: string
+  location: string
+  assignment: string
+  joinedAt: string
+}
 type TasksResponse = { tasks: ApiTask[] }
 type TaskResponse = { task: ApiTask }
 
@@ -237,6 +245,8 @@ export const profileApi = {
 export const eventsApi = {
   listAll: () => request<EventsResponse>("/events"),
   listMine: () => request<EventsResponse>("/events/mine"),
+  listVolunteers: (id: string) =>
+    request<{ volunteers: ApiVolunteer[] }>(`/events/${id}/volunteers`),
   join: (id: string) =>
     request<EventResponse>(`/events/${id}/join`, { method: "POST" }),
   create: (input: {
@@ -254,6 +264,13 @@ export const eventsApi = {
 
 export const tasksApi = {
   listFeed: () => request<TasksResponse>("/tasks/feed"),
+  listMine: () => request<TasksResponse>("/tasks/mine"),
+  join: (id: string) =>
+    request<{ event: ApiEvent }>(`/tasks/${encodeURIComponent(id)}/join`, {
+      method: "POST",
+    }),
+  listForEvent: (eventId: string) =>
+    request<TasksResponse>(`/tasks/event/${encodeURIComponent(eventId)}`),
   create: (input: {
     eventId: string
     title: string

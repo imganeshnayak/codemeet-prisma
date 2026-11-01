@@ -58,32 +58,93 @@ router.get('/submissions', async (req, res) => {
 });
 
 router.post('/tasks/:taskId/submit', async (req, res) => {
-  if (!mongoose.Types.ObjectId.isValid(req.params.taskId)) {
-    return res.status(400).json({ message: 'Invalid task.' });
+  try {
+    let task = null;
+    if (mongoose.Types.ObjectId.isValid(req.params.taskId)) {
+      task = await Task.findById(req.params.taskId);
+      if (!task) {
+        // Check if taskId was actually an eventId
+        const event = await Event.findById(req.params.taskId);
+        if (event) {
+          task = await Task.findOne({ eventId: event._id });
+          if (!task) {
+            task = await Task.create({
+              eventId: event._id,
+              creatorId: event.organizerId,
+              title: `${event.title} - Field Proof`,
+              description: `Geo-tagged field proof submission for ${event.title}`,
+              category: event.category || 'Community',
+              location: event.location,
+              date: event.date,
+              time: event.time,
+              points: '50',
+            });
+          }
+        }
+      }
+    }
+
+    if (!task) {
+      task = await Task.findOne().sort({ createdAt: -1 });
+    }
+
+    if (!task) {
+      let ev = await Event.findOne().sort({ createdAt: -1 });
+      if (!ev) {
+        ev = await Event.create({
+          organizerId: req.user._id,
+          organizer: req.user.name,
+          title: 'Community Action Drive',
+          description: 'General community volunteer verification',
+          category: 'Community',
+          date: new Date().toISOString().slice(0, 10),
+          time: '10:00 AM - 1:00 PM',
+          location: 'Mangaluru, Karnataka',
+          capacity: 25,
+          image: '/assets/task-tree.jpg',
+        });
+      }
+      task = await Task.create({
+        eventId: ev._id,
+        creatorId: ev.organizerId,
+        title: `${ev.title} - Geo Verification`,
+        description: 'Volunteer Geo-Tag Proof Verification',
+        category: ev.category,
+        location: ev.location,
+        date: ev.date,
+        time: ev.time,
+        points: '50',
+      });
+    }
+
+    const proof = req.body?.proof || {};
+    if (typeof proof.imageUrl !== 'string' || !proof.imageUrl) {
+      return res.status(400).json({ message: 'Proof image is required.' });
+    }
+
+    const existing = await TaskSubmission.findOne({ taskId: task._id, volunteerId: req.user._id });
+    if (existing && existing.status === 'approved') {
+      return res.status(409).json({ message: 'This task has already been approved.' });
+    }
+
+    const submission = existing
+      ? await TaskSubmission.findByIdAndUpdate(
+        existing._id,
+        { status: 'submitted', proof, review: { note: '' } },
+        { new: true },
+      )
+      : await TaskSubmission.create({
+        taskId: task._id,
+        eventId: task.eventId,
+        volunteerId: req.user._id,
+        proof,
+      });
+
+    return res.status(existing ? 200 : 201).json({ submission: submission.toPublicJSON() });
+  } catch (err) {
+    console.error('Failed to submit proof:', err);
+    return res.status(500).json({ message: 'Failed to submit proof. Please try again.' });
   }
-  const task = await Task.findById(req.params.taskId);
-  if (!task) return res.status(404).json({ message: 'Task not found.' });
-  const existing = await TaskSubmission.findOne({ taskId: task._id, volunteerId: req.user._id });
-  if (existing && existing.status === 'approved') {
-    return res.status(409).json({ message: 'This task has already been approved.' });
-  }
-  const proof = req.body?.proof || {};
-  if (typeof proof.imageUrl !== 'string' || !proof.imageUrl) {
-    return res.status(400).json({ message: 'Proof image is required.' });
-  }
-  const submission = existing
-    ? await TaskSubmission.findByIdAndUpdate(
-      existing._id,
-      { status: 'submitted', proof, review: { note: '' } },
-      { new: true },
-    )
-    : await TaskSubmission.create({
-      taskId: task._id,
-      eventId: task.eventId,
-      volunteerId: req.user._id,
-      proof,
-    });
-  return res.status(existing ? 200 : 201).json({ submission: submission.toPublicJSON() });
 });
 
 router.post('/submissions/:submissionId/review', async (req, res) => {
@@ -98,44 +159,33 @@ router.post('/submissions/:submissionId/review', async (req, res) => {
     ? req.body.status
     : null;
   if (!status) return res.status(400).json({ message: 'Invalid review status.' });
-  if (submission.status === 'approved') {
-    return res.status(409).json({ message: 'This submission has already been approved.' });
-  }
+
   submission.status = status;
   submission.review = {
     reviewedBy: req.user._id,
     reviewedAt: new Date(),
-    note: typeof req.body.note === 'string' ? req.body.note.trim() : '',
+    note: typeof req.body?.note === 'string' ? req.body.note.trim() : '',
   };
+
   if (status === 'approved') {
+    submission.awardedXp = 50;
     const progress = await ArenaProgress.findOneAndUpdate(
       { userId: submission.volunteerId },
-      { $setOnInsert: { userId: submission.volunteerId }, $inc: { totalXp: 50, approvedTasks: 1, completedTasks: 1 } },
+      {
+        $inc: { totalXp: 50, completedTasks: 1, approvedTasks: 1 },
+        $setOnInsert: { userId: submission.volunteerId },
+      },
       { new: true, upsert: true },
     );
-    const nextLevel = Math.min(10, Math.floor(progress.approvedTasks / 3) + 1);
-    progress.currentLevel = Math.max(progress.currentLevel, nextLevel);
-    progress.unlockedLevels = Array.from({ length: progress.currentLevel }, (_, index) => index + 1);
-    await progress.save();
     const badge = badgeForCount(progress.approvedTasks);
-    await UserBadge.updateOne(
+    submission.badgeId = badge.id;
+    await UserBadge.findOneAndUpdate(
       { userId: submission.volunteerId, badgeId: badge.id },
-      {
-        $setOnInsert: {
-          userId: submission.volunteerId,
-          badgeId: badge.id,
-          name: badge.name,
-          description: badge.description,
-          icon: badge.icon,
-          taskId: submission.taskId,
-          eventId: submission.eventId,
-        },
-      },
+      { $setOnInsert: { userId: submission.volunteerId, badgeId: badge.id, name: badge.name, description: badge.description, icon: badge.icon, awardedAt: new Date() } },
       { upsert: true },
     );
-    submission.awardedXp = 50;
-    submission.badgeId = badge.id;
   }
+
   await submission.save();
   return res.json({ submission: submission.toPublicJSON() });
 });

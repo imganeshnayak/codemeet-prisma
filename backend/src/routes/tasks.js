@@ -2,11 +2,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Event = require('../models/Event');
 const Task = require('../models/Task');
-const { requireAuth, optionalAuth } = require('../middleware/auth');
+const EventParticipation = require('../models/EventParticipation');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/feed', optionalAuth, async (req, res) => {
+router.use(requireAuth);
+
+router.get('/feed', async (req, res) => {
   try {
     const tasks = await Task.find().sort({ createdAt: -1 }).limit(100).exec();
     return res.json({ tasks: tasks.map((task) => task.toPublicJSON()) });
@@ -16,7 +19,78 @@ router.get('/feed', optionalAuth, async (req, res) => {
   }
 });
 
-router.use(requireAuth);
+router.post('/:id/join', async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: 'Task not found.' });
+
+    if (task.creatorId.equals(req.user._id)) {
+      return res.status(400).json({ message: 'You cannot join your own task.' });
+    }
+
+    const event = await Event.findById(task.eventId);
+    if (!event) return res.status(404).json({ message: 'The event for this task was not found.' });
+    if (event.organizerId.equals(req.user._id)) {
+      return res.status(400).json({ message: 'Organizers cannot join their own event.' });
+    }
+
+    const existing = await EventParticipation.exists({
+      eventId: event._id,
+      userId: req.user._id,
+    });
+    if (existing) return res.status(409).json({ message: 'You have already joined this event.' });
+    if (event.volunteers >= event.capacity) {
+      return res.status(409).json({ message: 'This event has reached its volunteer capacity.' });
+    }
+
+    await EventParticipation.create({
+      eventId: event._id,
+      userId: req.user._id,
+      assignment: task.title,
+    });
+    event.volunteers += 1;
+    await event.save();
+
+    return res.status(201).json({ event: event.toPublicJSON('attending', task.title) });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: 'You have already joined this event.' });
+    }
+    console.error('Failed to join task:', error);
+    return res.status(500).json({ message: 'Failed to join task.' });
+  }
+});
+
+router.get('/mine', async (req, res) => {
+  try {
+    const tasks = await Task.find({ creatorId: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .exec();
+    return res.json({ tasks: tasks.map((task) => task.toPublicJSON()) });
+  } catch (error) {
+    console.error('Failed to get user tasks:', error);
+    return res.status(500).json({ message: 'Failed to get your tasks.' });
+  }
+});
+
+router.get('/event/:eventId', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.eventId)) {
+      return res.status(400).json({ message: 'Invalid event.' });
+    }
+    const event = await Event.findOne({
+      _id: req.params.eventId,
+      organizerId: req.user._id,
+    });
+    if (!event) return res.status(404).json({ message: 'Event not found or access denied.' });
+    const tasks = await Task.find({ eventId: event._id }).sort({ createdAt: -1 }).exec();
+    return res.json({ tasks: tasks.map((task) => task.toPublicJSON()) });
+  } catch (error) {
+    console.error('Failed to list event tasks:', error);
+    return res.status(500).json({ message: 'Failed to fetch event tasks.' });
+  }
+});
 
 router.post('/', async (req, res) => {
   try {
