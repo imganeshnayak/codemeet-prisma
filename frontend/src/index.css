@@ -842,6 +842,7 @@
 }
 
 .arena-pixel-page {
+  min-height: 100dvh;
   overflow-x: hidden;
   background: #70c324;
 }
@@ -858,6 +859,7 @@
 
 .pixel-art-stage-map {
   height: 640px;
+  background: #70c324;
 }
 
 .pixel-art-stage-leaderboard {
@@ -1771,40 +1773,7 @@
   width: 100%;
   max-width: 1120px;
   margin: 0 auto 4px;
-  padding: 22px 0 28px;
-}
-
-.memory-gallery-heading {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 0 24px 15px;
-}
-
-.memory-gallery-heading span {
-  color: #9500ef;
-  font-family: 'Inter:Semi Bold', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-}
-
-.memory-gallery-heading h2 {
-  margin-top: 3px;
-  font-family: 'Inter:Extra Bold', sans-serif;
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.8px;
-  line-height: 1;
-}
-
-.memory-gallery-heading p {
-  display: none;
-  color: #6d6574;
-  font-family: 'Inter:Medium', sans-serif;
-  font-size: 12px;
+  padding: 0 0 28px;
 }
 
 .memory-reel-shell {
@@ -2220,20 +2189,8 @@
 
   .memory-gallery {
     width: calc(100% - 64px);
-    padding: 30px 0;
+    padding: 0 0 30px;
     margin: 0 auto;
-  }
-
-  .memory-gallery-heading {
-    padding: 0 8px 20px;
-  }
-
-  .memory-gallery-heading h2 {
-    font-size: 30px;
-  }
-
-  .memory-gallery-heading p {
-    display: block;
   }
 
   .memory-reel-viewport {
@@ -2405,30 +2362,18 @@
 }
 
 @media (max-width: 389px) {
-  .pixel-art-stage-map {
-    height: 589px;
-  }
-
   .pixel-art-stage-leaderboard {
     height: 854px;
   }
 
   .pixel-art-canvas {
-    transform: translateX(-50%) scale(0.92);
+    transform: translateX(-50%) scale(min(1, calc(100vw / 390)));
   }
 }
 
 @media (max-width: 359px) {
-  .pixel-art-stage-map {
-    height: 525px;
-  }
-
   .pixel-art-stage-leaderboard {
     height: 761px;
-  }
-
-  .pixel-art-canvas {
-    transform: translateX(-50%) scale(0.82);
   }
 }
 
@@ -2453,6 +2398,17 @@
   .pixel-art-stage-map .arena-view-toggle,
   .pixel-art-stage-leaderboard .arena-view-toggle {
     top: 18px;
+  }
+}
+
+@media (max-width: 767px) {
+  .pixel-art-stage-map {
+    height: calc(100dvh - 88px);
+    min-height: 0;
+  }
+
+  .pixel-art-canvas-map {
+    transform: translateX(-50%) scale(min(1, calc(100vw / 390)));
   }
 }
 
