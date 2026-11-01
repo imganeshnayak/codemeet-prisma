@@ -2005,6 +2005,127 @@
   white-space: nowrap;
 }
 
+.memory-caption-dialog {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(16 12 24 / 72%);
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  animation: memory-viewer-in 180ms ease-out;
+}
+
+.memory-caption-card {
+  width: min(520px, 100%);
+  max-height: 88dvh;
+  overflow-y: auto;
+  border: 2px solid #100c18;
+  border-radius: 22px;
+  background: #fff7fd;
+  padding: 22px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 40%);
+}
+
+.memory-caption-heading h2 {
+  font-family: 'Inter:Bold', sans-serif;
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+
+.memory-caption-heading p {
+  margin-top: 4px;
+  color: #6d6572;
+  font-family: 'Inter:Regular', sans-serif;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.memory-caption-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.memory-caption-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.memory-caption-preview {
+  height: 64px;
+  width: 64px;
+  flex: 0 0 auto;
+  border: 2px solid #100c18;
+  border-radius: 12px;
+  background: #100c18;
+  object-fit: cover;
+}
+
+.memory-caption-field {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.memory-caption-field span {
+  color: #9500ef;
+  font-family: 'Inter:Semi Bold', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.memory-caption-field input {
+  height: 40px;
+  border: 1px solid #d8c8e6;
+  border-radius: 10px;
+  background: white;
+  padding: 0 12px;
+  font-family: 'Inter:Regular', sans-serif;
+  font-size: 13px;
+  outline: none;
+}
+
+.memory-caption-field input:focus {
+  border-color: #9500ef;
+  box-shadow: 0 0 0 3px rgb(149 0 239 / 15%);
+}
+
+.memory-caption-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.memory-caption-actions button {
+  height: 40px;
+  border: 1px solid #100c18;
+  border-radius: 10px;
+  padding: 0 18px;
+  font-family: 'Inter:Medium', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.memory-caption-cancel {
+  background: white;
+  color: #100c18;
+}
+
+.memory-caption-save {
+  background: #9500ef;
+  box-shadow: 0 3px 0 #100c18;
+  color: white;
+}
+
 @keyframes memory-cinema-roll {
   to {
     transform: translateX(-50%);

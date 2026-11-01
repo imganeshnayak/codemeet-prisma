@@ -57,6 +57,13 @@ type MemoryMedia = {
   uploaded?: boolean
 }
 
+type PendingUpload = {
+  id: string
+  fileName: string
+  src: string
+  type: "image" | "video"
+}
+
 const initialMemories: MemoryMedia[] = assets.photos.map((src, index) => ({
   id: `community-memory-${index + 1}`,
   label: [
@@ -130,6 +137,8 @@ export default function MemoryReel({
   const inputRef = useRef<HTMLInputElement>(null)
   const objectUrlsRef = useRef<string[]>([])
   const [uploadedMemories, setUploadedMemories] = useState<MemoryMedia[]>([])
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([])
+  const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({})
   const [selectedMemory, setSelectedMemory] = useState("")
   const [activeMedia, setActiveMedia] = useState<MemoryMedia | null>(null)
   const memories = [...uploadedMemories, ...initialMemories]
@@ -146,6 +155,17 @@ export default function MemoryReel({
   }, [activeMedia])
 
   useEffect(() => {
+    if (!pendingUploads.length) return
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") cancelUploads()
+    }
+
+    document.addEventListener("keydown", closeOnEscape)
+    return () => document.removeEventListener("keydown", closeOnEscape)
+  }, [pendingUploads])
+
+  useEffect(() => {
     const objectUrls = objectUrlsRef.current
     return () => objectUrls.forEach((url) => URL.revokeObjectURL(url))
   }, [])
@@ -154,25 +174,58 @@ export default function MemoryReel({
     const files = Array.from(event.target.files ?? [])
     if (!files.length) return
 
-    const uploads = files.map((file, index): MemoryMedia => {
+    const pending = files.map((file, index): PendingUpload => {
       const src = URL.createObjectURL(file)
       objectUrlsRef.current.push(src)
       return {
         id: `upload-${file.name}-${file.lastModified}-${index}`,
-        label: file.name.replace(/\.[^.]+$/, ""),
+        fileName: file.name.replace(/\.[^.]+$/, ""),
         src,
         type: file.type.startsWith("video/") ? "video" : "image",
-        uploaded: true,
       }
     })
 
-    setUploadedMemories((current) => [...uploads, ...current])
-    setSelectedMemory(
-      files.length === 1
-        ? `${files[0].name} is ready to preview.`
-        : `${files.length} new memories are ready to preview.`,
+    setPendingUploads(pending)
+    setCaptionDrafts(
+      Object.fromEntries(pending.map((upload) => [upload.id, ""])),
     )
     event.target.value = ""
+  }
+
+  function updateCaption(id: string, value: string) {
+    setCaptionDrafts((current) => ({ ...current, [id]: value }))
+  }
+
+  function cancelUploads() {
+    pendingUploads.forEach((upload) => {
+      URL.revokeObjectURL(upload.src)
+      objectUrlsRef.current = objectUrlsRef.current.filter(
+        (url) => url !== upload.src,
+      )
+    })
+    setPendingUploads([])
+    setCaptionDrafts({})
+  }
+
+  function saveUploads() {
+    const uploads = pendingUploads.map(
+      (upload): MemoryMedia => ({
+        id: upload.id,
+        label: captionDrafts[upload.id]?.trim() || upload.fileName,
+        src: upload.src,
+        type: upload.type,
+        uploaded: true,
+      }),
+    )
+
+    setUploadedMemories((current) => [...uploads, ...current])
+    setSelectedMemory(
+      uploads.length === 1
+        ? `"${uploads[0].label}" is ready to preview.`
+        : `${uploads.length} new memories are ready to preview.`,
+    )
+    setPendingUploads([])
+    setCaptionDrafts({})
   }
 
   return (
@@ -373,6 +426,76 @@ export default function MemoryReel({
           </button>
         ))}
       </nav>
+
+      {pendingUploads.length > 0 && (
+        <div
+          aria-labelledby="memory-caption-title"
+          aria-modal="true"
+          className="memory-caption-dialog"
+          role="dialog"
+        >
+          <div className="memory-caption-card">
+            <div className="memory-caption-heading">
+              <h2 id="memory-caption-title">Add a caption</h2>
+              <p>
+                Tell the story behind{" "}
+                {pendingUploads.length === 1 ? "this memory" : "these memories"}.
+              </p>
+            </div>
+            <div className="memory-caption-list">
+              {pendingUploads.map((upload, index) => (
+                <div className="memory-caption-item" key={upload.id}>
+                  {upload.type === "video" ? (
+                    <video
+                      aria-hidden="true"
+                      className="memory-caption-preview"
+                      muted
+                      playsInline
+                      src={upload.src}
+                    />
+                  ) : (
+                    <img
+                      alt=""
+                      className="memory-caption-preview"
+                      src={upload.src}
+                    />
+                  )}
+                  <label className="memory-caption-field">
+                    <span>
+                      {upload.type === "video" ? "Video caption" : "Photo caption"}
+                    </span>
+                    <input
+                      autoFocus={index === 0}
+                      onChange={(event) =>
+                        updateCaption(upload.id, event.target.value)
+                      }
+                      placeholder="Write a caption..."
+                      type="text"
+                      value={captionDrafts[upload.id] ?? ""}
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="memory-caption-actions">
+              <button
+                className="memory-caption-cancel"
+                onClick={cancelUploads}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="memory-caption-save"
+                onClick={saveUploads}
+                type="button"
+              >
+                Add memory
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeMedia && (
         <div
