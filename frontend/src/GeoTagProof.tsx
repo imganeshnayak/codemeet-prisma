@@ -1,9 +1,118 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 const asset = (name: string) => `/assets/geo-proof/${name}`
 
 export default function GeoTagProof({ onBack }: { onBack: () => void }) {
   const [captured, setCaptured] = useState(false)
+  const [photo, setPhoto] = useState("")
+  const [cameraError, setCameraError] = useState("")
+  const [location, setLocation] = useState({
+    label: "Location unavailable",
+    coordinates: "Location unavailable",
+  })
+  const [capturedAt, setCapturedAt] = useState("")
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function startCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError("Camera access is not supported in this browser.")
+        return
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: "environment" } },
+        })
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+        }
+      } catch {
+        if (!cancelled) {
+          setCameraError(
+            "Camera access was denied or unavailable. Check browser permissions and use HTTPS.",
+          )
+        }
+      }
+    }
+
+    startCamera()
+    navigator.geolocation?.getCurrentPosition(
+      ({ coords }) => {
+        setLocation({
+          label: `${coords.latitude.toFixed(4)}°, ${coords.longitude.toFixed(4)}°`,
+          coordinates: `Lat: ${coords.latitude.toFixed(4)}° N, Lon: ${coords.longitude.toFixed(4)}° E`,
+        })
+      },
+      () => {
+        setLocation({
+          label: "Location unavailable",
+          coordinates: "Location permission not granted",
+        })
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+  }, [])
+
+  function capturePhoto() {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraError("The camera is not ready yet. Please try again.")
+      return
+    }
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext("2d")?.drawImage(video, 0, 0)
+    setPhoto(canvas.toDataURL("image/jpeg", 0.9))
+    setCapturedAt(
+      new Intl.DateTimeFormat("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date()),
+    )
+    setCaptured(true)
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+  }
+
+  async function retakePhoto() {
+    setPhoto("")
+    setCaptured(false)
+    setCapturedAt("")
+    setCameraError("")
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" } },
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+    } catch {
+      setCameraError("Camera access is unavailable. Check browser permissions.")
+    }
+  }
 
   return (
     <main className="geo-proof-page">
@@ -48,11 +157,27 @@ export default function GeoTagProof({ onBack }: { onBack: () => void }) {
 
       <section className="geo-proof-card" aria-label="Proof capture">
         <div className="geo-proof-preview">
-          <img
-            alt="Two volunteers planting a sapling"
-            className="geo-proof-photo"
-            src={asset("dbbe5.png")}
-          />
+          {photo ? (
+            <img
+              alt="Captured proof"
+              className="geo-proof-photo"
+              src={photo}
+            />
+          ) : (
+            <video
+              aria-label="Live camera preview"
+              autoPlay
+              className="geo-proof-photo"
+              muted
+              playsInline
+              ref={videoRef}
+            />
+          )}
+          {!photo && cameraError && (
+            <div className="geo-proof-camera-error" role="alert">
+              {cameraError}
+            </div>
+          )}
           <div className="geo-proof-live">
             <img alt="" src={asset("1c08b.svg")} />
             <span>Live Proof</span>
@@ -66,11 +191,12 @@ export default function GeoTagProof({ onBack }: { onBack: () => void }) {
           </button>
           <img alt="" className="geo-proof-guides" src={asset("5eae8.svg")} />
         </div>
+        <canvas className="geo-proof-canvas" ref={canvasRef} />
 
         <button
           aria-label="Take proof photo"
           className="geo-proof-shutter"
-          onClick={() => setCaptured(true)}
+          onClick={capturePhoto}
           type="button"
         >
           <img
@@ -87,15 +213,15 @@ export default function GeoTagProof({ onBack }: { onBack: () => void }) {
           <div className="geo-proof-metadata">
             <p>
               <img alt="" src={asset("240e7.svg")} />
-              <span>Mangaluru, Karnataka</span>
+              <span>{location.label}</span>
             </p>
             <p>
               <img alt="" src={asset("d1264.svg")} />
-              <span>12 Oct 2025, 09:17 AM</span>
+              <span>{capturedAt || "Capture time appears after taking a photo"}</span>
             </p>
             <p>
               <img alt="" src={asset("7aa3c.svg")} />
-              <span>Lat: 12.9141° N, Lon: 74.8560° E</span>
+              <span>{location.coordinates}</span>
             </p>
           </div>
           <div className="geo-proof-map" aria-label="Map of capture location">
@@ -114,11 +240,11 @@ export default function GeoTagProof({ onBack }: { onBack: () => void }) {
 
         <button
           className={`geo-proof-capture ${captured ? "is-captured" : ""}`}
-          onClick={() => setCaptured(true)}
+          onClick={captured ? retakePhoto : capturePhoto}
           type="button"
         >
           <img alt="" src={asset("9c3e4.svg")} />
-          <span>{captured ? "Proof Captured" : "Capture Proof"}</span>
+          <span>{captured ? "Retake Photo" : "Capture Proof"}</span>
           <img alt="" src={asset("3b555.svg")} />
         </button>
       </section>

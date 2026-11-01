@@ -1,5 +1,8 @@
-import { ChangeEvent, FormEvent, useState } from "react"
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react"
 import { CreateEventInput } from "./events"
+import { ApiError } from "./api"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
 
 const asset = (name: string) => `/assets/${name}`
 
@@ -19,16 +22,162 @@ const initialForm: FormState = {
   image: "",
 }
 
+const defaultMapCenter: L.LatLngExpression = [12.9141, 74.8560]
+
+function MapPicker({
+  onLocationSelected,
+}: {
+  onLocationSelected: (location: string) => void
+}) {
+  const mapElement = useRef<HTMLDivElement>(null)
+  const map = useRef<L.Map | null>(null)
+  const marker = useRef<L.CircleMarker | null>(null)
+  const onLocationSelectedRef = useRef(onLocationSelected)
+  const [loadingAddress, setLoadingAddress] = useState(false)
+  const [search, setSearch] = useState("")
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState("")
+
+  onLocationSelectedRef.current = onLocationSelected
+
+  useEffect(() => {
+    if (!mapElement.current || map.current) return
+
+    const mapInstance = L.map(mapElement.current).setView(defaultMapCenter, 12)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(mapInstance)
+
+    mapInstance.on("click", async (event: L.LeafletMouseEvent) => {
+      marker.current?.remove()
+      marker.current = L.circleMarker(event.latlng, {
+        color: "#8300e8",
+        fillColor: "#d8f23c",
+        fillOpacity: 1,
+        radius: 9,
+        weight: 3,
+      }).addTo(mapInstance)
+
+      setLoadingAddress(true)
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${event.latlng.lat}&lon=${event.latlng.lng}`,
+        )
+        if (!response.ok) throw new Error("Address lookup failed")
+        const result = (await response.json()) as {
+          display_name?: string
+        }
+        onLocationSelectedRef.current(
+          result.display_name ||
+            `${event.latlng.lat.toFixed(5)}, ${event.latlng.lng.toFixed(5)}`,
+        )
+      } catch {
+        onLocationSelectedRef.current(
+          `${event.latlng.lat.toFixed(5)}, ${event.latlng.lng.toFixed(5)}`,
+        )
+      } finally {
+        setLoadingAddress(false)
+      }
+    })
+
+    map.current = mapInstance
+    return () => {
+      mapInstance.remove()
+      map.current = null
+    }
+  }, [])
+
+  async function searchLocation() {
+    const query = search.trim()
+    if (!query) return
+
+    setSearching(true)
+    setSearchError("")
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`,
+      )
+      if (!response.ok) throw new Error("Location search failed")
+      const results = (await response.json()) as Array<{
+        lat: string
+        lon: string
+        display_name: string
+      }>
+      const result = results[0]
+      if (!result || !map.current) {
+        setSearchError("No matching location found.")
+        return
+      }
+
+      const coordinates = L.latLng(Number(result.lat), Number(result.lon))
+      map.current.setView(coordinates, 16)
+      marker.current?.remove()
+      marker.current = L.circleMarker(coordinates, {
+        color: "#8300e8",
+        fillColor: "#d8f23c",
+        fillOpacity: 1,
+        radius: 9,
+        weight: 3,
+      }).addTo(map.current)
+      onLocationSelectedRef.current(result.display_name)
+    } catch {
+      setSearchError("Location search is unavailable. Try again or click the map.")
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 overflow-hidden rounded-xl border-2 border-[#18151d]">
+      <div className="event-map-search">
+        <input
+          aria-label="Search map location"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              void searchLocation()
+            }
+          }}
+          onChange={(event) => {
+            setSearch(event.target.value)
+            setSearchError("")
+          }}
+          placeholder="Search city, venue, or address"
+          value={search}
+        />
+        <button
+          disabled={searching}
+          onClick={() => void searchLocation()}
+          type="button"
+        >
+          {searching ? "Searching..." : "Search"}
+        </button>
+      </div>
+      <div className="event-map" ref={mapElement} />
+      <p className="bg-white px-3 py-2 text-[11px] text-[#626067]">
+        {searchError ||
+          (loadingAddress
+          ? "Finding this location..."
+          : "Search for a place or click the map to select the event location.")}
+      </p>
+    </div>
+  )
+}
+
 export default function CreateEvent({
   onBack,
   onCreated,
 }: {
   onBack: () => void
-  onCreated: (event: CreateEventInput) => void
+  onCreated: (event: CreateEventInput) => void | Promise<void>
 }) {
   const [form, setForm] = useState(initialForm)
   const [error, setError] = useState("")
   const [fileName, setFileName] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [mapOpen, setMapOpen] = useState(false)
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }))
@@ -63,7 +212,7 @@ export default function CreateEvent({
     reader.readAsDataURL(file)
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!form.image) {
       setError("Add a cover image before creating your event.")
@@ -76,14 +225,25 @@ export default function CreateEvent({
       return
     }
 
-    onCreated({
-      ...form,
-      title: form.title.trim(),
-      description: form.description.trim(),
-      location: form.location.trim(),
-      skills: form.skills.trim(),
-      capacity,
-    })
+    setSaving(true)
+    try {
+      await onCreated({
+        ...form,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        location: form.location.trim(),
+        skills: form.skills.trim(),
+        capacity,
+      })
+    } catch (requestError) {
+      setError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : "We could not create the event. Please try again.",
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -205,6 +365,18 @@ export default function CreateEvent({
             value={form.location}
           />
         </EventField>
+        <button
+          className="event-map-toggle"
+          onClick={() => setMapOpen((open) => !open)}
+          type="button"
+        >
+          {mapOpen ? "Hide map" : "Choose location on map"}
+        </button>
+        {mapOpen && (
+          <MapPicker
+            onLocationSelected={(location) => update("location", location)}
+          />
+        )}
 
         <div className="grid grid-cols-[151px_1fr] gap-4">
           <EventField icon="4d6bb.svg" label="Volunteer Capacity">
@@ -271,9 +443,9 @@ export default function CreateEvent({
             </div>
           </div>
         </div>
-        <button className="event-submit" type="submit">
+        <button className="event-submit" disabled={saving} type="submit">
           <img alt="" src={asset("2a937.svg")} />
-          Create Event
+          {saving ? "Creating..." : "Create Event"}
         </button>
       </form>
       <GardenDecor />

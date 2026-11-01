@@ -269,6 +269,12 @@
 .event-upload small { color: #626067; font-size: 9px; }
 .event-submit { display: flex; height: 36px; align-items: center; justify-content: center; gap: 10px; border-radius: 9px; background: linear-gradient(#8300e8, #7903d5); color: white; font: 700 14px 'Arimo:Bold'; }
 .event-submit img { width: 23px; height: 23px; }
+.event-map { height: 250px; width: 100%; }
+.event-map-toggle { align-self: flex-start; color: #7903d5; font: 700 12px 'Arimo:Bold'; text-decoration: underline; }
+.event-map-search { display: flex; gap: 8px; background: white; padding: 10px; }
+.event-map-search input { min-width: 0; flex: 1; border: 1px solid #d6cedb; border-radius: 8px; padding: 8px 10px; font: 400 12px 'Arimo:Regular'; }
+.event-map-search button { border-radius: 8px; background: #8300e8; padding: 0 12px; color: white; font: 700 12px 'Arimo:Bold'; }
+.event-map-search button:disabled { cursor: wait; opacity: .7; }
 .event-garden { z-index: 1; height: 55px; }
 .event-garden img:first-child { position: absolute; inset: 0; width: 100%; height: 100%; }
 .event-garden img:nth-child(2) { position: absolute; bottom: -9px; left: -8px; width: 50px; }
@@ -555,6 +561,8 @@
   height: 100%;
   object-fit: cover;
 }
+.geo-proof-camera-error { position: absolute; inset: auto 16px 16px; z-index: 3; border-radius: 10px; background: rgba(24, 21, 29, .88); padding: 10px 12px; color: white; font: 700 12px 'Arimo:Bold'; text-align: center; }
+.geo-proof-canvas { display: none; }
 
 .geo-proof-live {
   position: absolute;
@@ -1817,13 +1825,22 @@
 .memory-reel-track {
   display: flex;
   width: max-content;
-  animation: memory-cinema-roll 38s linear infinite;
   will-change: transform;
 }
 
-.memory-reel-viewport:hover .memory-reel-track,
-.memory-reel-viewport:focus-within .memory-reel-track {
-  animation-play-state: paused;
+.memory-reel-viewport {
+  overflow-x: auto;
+  scrollbar-width: none;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.memory-reel-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.memory-reel-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .memory-reel-set {
@@ -2003,6 +2020,39 @@
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.memory-like-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgb(24 17 31 / 78%);
+  padding: 4px 8px;
+  color: white;
+  font-size: 12px;
+}
+
+.memory-viewer-like {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgb(255 255 255 / 40%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  padding: 6px 12px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.memory-viewer-like.liked {
+  background: rgb(220 38 38 / 70%);
+  border-color: rgb(220 38 38 / 90%);
 }
 
 .memory-caption-dialog {
