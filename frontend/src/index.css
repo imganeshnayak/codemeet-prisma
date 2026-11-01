@@ -2404,34 +2404,6 @@
   }
 }
 
-@media (max-width: 389px) {
-  .pixel-art-stage-map {
-    height: 589px;
-  }
-
-  .pixel-art-stage-leaderboard {
-    height: 854px;
-  }
-
-  .pixel-art-canvas {
-    transform: translateX(-50%) scale(0.92);
-  }
-}
-
-@media (max-width: 359px) {
-  .pixel-art-stage-map {
-    height: 525px;
-  }
-
-  .pixel-art-stage-leaderboard {
-    height: 761px;
-  }
-
-  .pixel-art-canvas {
-    transform: translateX(-50%) scale(0.82);
-  }
-}
-
 @media (min-width: 768px) {
   .pixel-art-stage {
     height: calc(100dvh - 88px);

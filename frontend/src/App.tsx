@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
 import DonationTracker from "./DonationTracker"
@@ -997,6 +997,30 @@ function ArenaScreen({
   const [arenaView, setArenaView] = useState<"map" | "leaderboard">("map")
   const [showReward, setShowReward] = useState(false)
   const [rewardClaimed, setRewardClaimed] = useState(false)
+  const stageRef = useRef<HTMLElement | null>(null)
+  const [canvasScale, setCanvasScale] = useState<number | null>(null)
+
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return
+    const compute = () => {
+      if (window.innerWidth >= 768) {
+        setCanvasScale(null)
+        return
+      }
+      const base = arenaView === "leaderboard" ? 928 : 640
+      const availableHeight = window.innerHeight - 96
+      setCanvasScale(Math.min(stage.clientWidth / 390, availableHeight / base))
+    }
+    compute()
+    const observer = new ResizeObserver(compute)
+    observer.observe(stage)
+    window.addEventListener("resize", compute)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener("resize", compute)
+    }
+  }, [arenaView])
 
   function changeArenaView(view: "map" | "leaderboard") {
     setArenaView(view)
@@ -1010,6 +1034,7 @@ function ArenaScreen({
       }`}
     >
       <section
+        ref={stageRef}
         aria-label={
           arenaView === "map" ? "Adventure level map" : "Level 6 leaderboard"
         }
@@ -1018,6 +1043,11 @@ function ArenaScreen({
             ? "pixel-art-stage-leaderboard"
             : "pixel-art-stage-map"
         } md:!h-[calc(100dvh-88px)] md:!min-h-0 md:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.03)] [@media(min-width:768px)_and_(min-height:800px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.1)] [@media(min-width:768px)_and_(min-height:900px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.25)] [@media(min-width:768px)_and_(min-height:1000px)]:[&_.pixel-art-canvas-map]:![transform:translate(-50%,-50%)_scale(1.4)]`}
+        style={
+          canvasScale !== null
+            ? { height: (arenaView === "leaderboard" ? 928 : 640) * canvasScale }
+            : undefined
+        }
       >
         <div className="arena-view-toggle" aria-label="Arena view">
           <button
@@ -1040,7 +1070,14 @@ function ArenaScreen({
 
         {arenaView === "map" ? (
           <>
-            <div className="pixel-art-canvas pixel-art-canvas-map">
+            <div
+              className="pixel-art-canvas pixel-art-canvas-map"
+              style={
+                canvasScale !== null
+                  ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 640 * canvasScale }
+                  : undefined
+              }
+            >
               <PixelAdventureMap
                 onLevelSix={() => setShowReward(true)}
                 rewardClaimed={rewardClaimed}
@@ -1100,7 +1137,14 @@ function ArenaScreen({
             )}
           </>
         ) : (
-          <div className="pixel-art-canvas pixel-art-canvas-leaderboard">
+          <div
+            className="pixel-art-canvas pixel-art-canvas-leaderboard"
+            style={
+              canvasScale !== null
+                ? { transform: `translateX(-50%) scale(${canvasScale})`, height: 928 * canvasScale }
+                : undefined
+            }
+          >
             <PixelLeaderboard />
           </div>
         )}
