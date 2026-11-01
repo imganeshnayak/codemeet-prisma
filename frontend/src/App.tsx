@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react"
+import { FormEvent, useRef, useState } from "react"
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
 import DonationTracker from "./DonationTracker"
@@ -483,18 +483,20 @@ function TaskCard({
   task,
   className = "",
   onOpenProof,
+  onSkip,
+  onInterest,
   onTrack,
 }: {
   task: Task
   className?: string
   onOpenProof?: () => void
+  onSkip?: () => void
+  onInterest?: () => void
   onTrack?: () => void
 }) {
-  const [liked, setLiked] = useState(false)
-
   return (
     <article
-      className={`task-card ${task.createEvent ? "cursor-pointer" : ""} ${className}`}
+      className={`task-card touch-pan-y ${task.createEvent ? "cursor-pointer" : ""} ${className}`}
       onClick={task.createEvent ? onTrack : undefined}
       onKeyDown={
         task.createEvent
@@ -513,26 +515,26 @@ function TaskCard({
         <img
           alt="Gloved volunteers planting a young tree"
           className="h-full w-full object-cover"
+          draggable={false}
           src={task.image}
         />
         <span className="font-outfit-semibold absolute left-5 top-5 flex items-center gap-2 rounded-full bg-[#f08be9] px-4 py-2 text-[15px] shadow-sm">
           <Icon className="h-4 w-4" name="leaf" />
           {task.category}
         </span>
-        <button
-          aria-label={liked ? "Unlike task" : "Like task"}
-          aria-pressed={liked}
-          className={`absolute right-5 top-5 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-md transition hover:scale-105 hover:text-[#8c23df] ${
-            liked ? "text-[#8c23df]" : "text-[#18151d]"
-          }`}
-          onClick={(event) => {
-            event.stopPropagation()
-            setLiked((current) => !current)
-          }}
-          type="button"
-        >
-          <Icon className={`h-5 w-5 ${liked ? "fill-current" : ""}`} name="heart" />
-        </button>
+        <div className="absolute right-5 top-5 flex gap-2">
+          <button
+            aria-label="Show interest"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#14a77f] shadow-md transition hover:scale-105"
+            onClick={(event) => {
+              event.stopPropagation()
+              onInterest?.()
+            }}
+            type="button"
+          >
+            <Icon className="h-5 w-5 fill-current" name="heart" />
+          </button>
+        </div>
       </div>
       <div className="px-5 pb-5 pt-5 sm:px-7">
         <div className="flex items-start justify-between gap-3">
@@ -639,13 +641,15 @@ function TasksScreen({
   const [current, setCurrent] = useState(0)
   const [direction, setDirection] = useState<"left" | "right" | null>(null)
   const [notice, setNotice] = useState("")
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
+  const suppressClick = useRef(false)
 
   function swipe(nextDirection: "left" | "right") {
     if (direction) return
     setDirection(nextDirection)
     setNotice(
       nextDirection === "right"
-        ? "Task saved to your interests"
+        ? "Task added to your interests"
         : "Task skipped",
     )
     window.setTimeout(() => {
@@ -696,6 +700,7 @@ function TasksScreen({
               <img
                 alt=""
                 className="h-full w-full object-cover"
+                draggable={false}
                 src={nextTask.image}
               />
             </div>
@@ -710,38 +715,56 @@ function TasksScreen({
                 ? "translate-x-[120%] rotate-12 opacity-0"
                 : ""
             }`}
+            onPointerCancel={() => {
+              swipeStart.current = null
+            }}
+            onPointerDown={(event) => {
+              if (
+                direction ||
+                (event.target instanceof Element &&
+                  event.target.closest("button"))
+              ) {
+                return
+              }
+              swipeStart.current = { x: event.clientX, y: event.clientY }
+            }}
+            onPointerUp={(event) => {
+              const start = swipeStart.current
+              swipeStart.current = null
+              if (!start) return
+              const distanceX = event.clientX - start.x
+              const distanceY = event.clientY - start.y
+              if (
+                Math.abs(distanceX) >= 70 &&
+                Math.abs(distanceX) > Math.abs(distanceY)
+              ) {
+                suppressClick.current = true
+                swipe(distanceX < 0 ? "left" : "right")
+                window.setTimeout(() => {
+                  suppressClick.current = false
+                }, 0)
+              }
+            }}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect()
+              const isRight = event.clientX - rect.left > rect.width / 2
+              swipe(isRight ? "right" : "left")
+            }}
+            onClickCapture={(event) => {
+              if (!suppressClick.current) return
+              suppressClick.current = false
+              event.preventDefault()
+              event.stopPropagation()
+            }}
           >
             <TaskCard
+              onInterest={() => swipe("right")}
               onOpenProof={onOpenProof}
+              onSkip={() => swipe("left")}
               onTrack={onTrack}
               task={task}
             />
           </div>
-        </div>
-
-        <div className="mx-auto mt-8 grid max-w-[560px] grid-cols-2 gap-8 sm:gap-20">
-          <button
-            className="swipe-action group"
-            onClick={() => swipe("left")}
-            type="button"
-          >
-            <span className="text-[#ff4051] group-hover:-rotate-6">
-              <Icon className="h-10 w-10" name="close" />
-            </span>
-            <strong>Swipe Left</strong>
-            <small>Skip this task</small>
-          </button>
-          <button
-            className="swipe-action group"
-            onClick={() => swipe("right")}
-            type="button"
-          >
-            <span className="text-[#14c99a] group-hover:rotate-6">
-              <Icon className="h-10 w-10 fill-current" name="heart" />
-            </span>
-            <strong>Swipe Right</strong>
-            <small>Show interest</small>
-          </button>
         </div>
       </section>
 
@@ -751,7 +774,7 @@ function TasksScreen({
           role="status"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#d8f23c]">
-            <Icon className="h-4 w-4" name="check" />
+            <Icon name="check" />
           </span>
           {notice}
         </div>
