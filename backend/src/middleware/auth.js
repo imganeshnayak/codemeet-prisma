@@ -38,14 +38,19 @@ async function requireAuth(req, res, next) {
 async function optionalAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const [scheme, token] = header.split(' ');
+<<<<<<< HEAD
 
   if (scheme !== 'Bearer' || !token) {
     return next();
   }
+=======
+  if (scheme !== 'Bearer' || !token) return next();
+>>>>>>> 0303c8b7b5059b2184fe3e764716173c9a058922
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(payload.sub);
+<<<<<<< HEAD
     if (user) {
       req.user = user;
     }
@@ -57,3 +62,13 @@ async function optionalAuth(req, res, next) {
 }
 
 module.exports = { requireAuth, optionalAuth, signToken };
+=======
+    if (user) req.user = user;
+  } catch (error) {
+    // ignore invalid tokens for optional auth
+  }
+  return next();
+}
+
+module.exports = { requireAuth, signToken, optionalAuth };
+>>>>>>> 0303c8b7b5059b2184fe3e764716173c9a058922

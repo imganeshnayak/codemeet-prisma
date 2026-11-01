@@ -1,5 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react"
 import NavigationIcon from "./NavigationIcon"
+import { ApiMemory, getStoredToken, memoriesApi } from "./api"
 
 const assetPath = "/assets/memories"
 
@@ -55,6 +56,8 @@ type MemoryMedia = {
   src: string
   type: "image" | "video"
   uploaded?: boolean
+  likesCount?: number
+  liked?: boolean
 }
 
 type PendingUpload = {
@@ -62,6 +65,7 @@ type PendingUpload = {
   fileName: string
   src: string
   type: "image" | "video"
+  file: File
 }
 
 const initialMemories: MemoryMedia[] = assets.photos.map((src, index) => ({
@@ -124,6 +128,11 @@ function MediaFrame({
         <img className="memory-reel-media" src={media.src} alt={media.label} />
       )}
       {media.uploaded && <span className="memory-new-badge">New</span>}
+      {typeof media.likesCount === "number" && (
+        <span className="memory-like-badge">
+          <span aria-hidden="true">♥</span> {media.likesCount}
+        </span>
+      )}
       <span className="memory-frame-shine" />
     </button>
   )
@@ -136,12 +145,44 @@ export default function MemoryReel({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const objectUrlsRef = useRef<string[]>([])
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const dragStateRef = useRef({ isDragging: false, startX: 0, scrollLeft: 0, pointerId: 0 })
+  const isDraggingRef = useRef(false)
+  const viewerOpenRef = useRef(false)
   const [uploadedMemories, setUploadedMemories] = useState<MemoryMedia[]>([])
+  const [remoteMemories, setRemoteMemories] = useState<MemoryMedia[]>([])
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([])
   const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({})
   const [selectedMemory, setSelectedMemory] = useState("")
   const [activeMedia, setActiveMedia] = useState<MemoryMedia | null>(null)
-  const memories = [...uploadedMemories, ...initialMemories]
+  const [uploading, setUploading] = useState(false)
+  const memories = [...uploadedMemories, ...remoteMemories, ...initialMemories]
+
+  useEffect(() => {
+    let cancelled = false
+    memoriesApi
+      .list()
+      .then(({ memories: list }) => {
+        if (cancelled) return
+        setRemoteMemories(
+          list.map((m: ApiMemory) => ({
+            id: m.id,
+            label: m.label,
+            src: m.src,
+            type: m.type,
+            uploaded: m.uploaded ?? true,
+            likesCount: m.likesCount ?? 0,
+            liked: m.liked ?? false,
+          })),
+        )
+      })
+      .catch(() => {
+        // keep local seed memories if backend is unavailable
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!activeMedia) return
@@ -177,12 +218,13 @@ export default function MemoryReel({
     const pending = files.map((file, index): PendingUpload => {
       const src = URL.createObjectURL(file)
       objectUrlsRef.current.push(src)
-      return {
-        id: `upload-${file.name}-${file.lastModified}-${index}`,
-        fileName: file.name.replace(/\.[^.]+$/, ""),
-        src,
-        type: file.type.startsWith("video/") ? "video" : "image",
-      }
+        return {
+          id: `upload-${file.name}-${file.lastModified}-${index}`,
+          fileName: file.name.replace(/\.[^.]+$/, ""),
+          src,
+          type: file.type.startsWith("video/") ? "video" : "image",
+          file,
+        }
     })
 
     setPendingUploads(pending)
@@ -196,6 +238,36 @@ export default function MemoryReel({
     setCaptionDrafts((current) => ({ ...current, [id]: value }))
   }
 
+  async function toggleLike(media: MemoryMedia) {
+    if (!getStoredToken()) return
+
+    try {
+      const { memory } = await memoriesApi.like(media.id)
+      const updater = (items: MemoryMedia[]) =>
+        items.map((item) =>
+          item.id === media.id
+            ? {
+                ...item,
+                likesCount: memory.likesCount ?? item.likesCount ?? 0,
+                liked: memory.liked ?? !item.liked,
+              }
+            : item,
+        )
+      setUploadedMemories(updater)
+      setRemoteMemories(updater)
+      setActiveMedia((current) =>
+        current && current.id === media.id
+          ? {
+              ...current,
+              likesCount: memory.likesCount ?? current.likesCount ?? 0,
+              liked: memory.liked ?? !current.liked,
+            }
+          : current,
+      )
+    } catch {
+      // ignore
+    }
+  }
   function cancelUploads() {
     pendingUploads.forEach((upload) => {
       URL.revokeObjectURL(upload.src)
@@ -207,25 +279,112 @@ export default function MemoryReel({
     setCaptionDrafts({})
   }
 
-  function saveUploads() {
-    const uploads = pendingUploads.map(
-      (upload): MemoryMedia => ({
-        id: upload.id,
-        label: captionDrafts[upload.id]?.trim() || upload.fileName,
-        src: upload.src,
-        type: upload.type,
-        uploaded: true,
-      }),
-    )
+  async function saveUploads() {
+    if (uploading) return
+    setUploading(true)
 
-    setUploadedMemories((current) => [...uploads, ...current])
-    setSelectedMemory(
-      uploads.length === 1
-        ? `"${uploads[0].label}" is ready to preview.`
-        : `${uploads.length} new memories are ready to preview.`,
-    )
-    setPendingUploads([])
-    setCaptionDrafts({})
+    const uploaded: MemoryMedia[] = []
+
+    try {
+      for (const upload of pendingUploads) {
+        const label = captionDrafts[upload.id]?.trim() || upload.fileName
+        const { memory } = await memoriesApi.upload(upload.file, label)
+        uploaded.push({
+          id: memory.id,
+          label: memory.label,
+          src: memory.src,
+          type: memory.type,
+          uploaded: true,
+          likesCount: memory.likesCount ?? 0,
+          liked: memory.liked ?? false,
+        })
+      }
+
+      setUploadedMemories((current) => [...uploaded, ...current])
+      setRemoteMemories((current) => [...uploaded, ...current])
+      setSelectedMemory(
+        uploaded.length === 1
+          ? `"${uploaded[0].label}" is ready to preview.`
+          : `${uploaded.length} new memories are ready to preview.`,
+      )
+      pendingUploads.forEach((upload) => {
+        URL.revokeObjectURL(upload.src)
+        objectUrlsRef.current = objectUrlsRef.current.filter(
+          (url) => url !== upload.src,
+        )
+      })
+      setPendingUploads([])
+      setCaptionDrafts({})
+    } catch (error) {
+      setSelectedMemory("Could not upload memories. Please try again.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  useEffect(() => {
+    viewerOpenRef.current = Boolean(activeMedia)
+  }, [activeMedia])
+
+  useEffect(() => {
+    let frame: number
+    const step = () => {
+      const viewport = viewportRef.current
+      if (viewport && !isDraggingRef.current && !viewerOpenRef.current) {
+        viewport.scrollLeft += 1
+        const half = viewport.scrollWidth / 2
+        if (half > 0 && viewport.scrollLeft >= half) {
+          viewport.scrollLeft -= half
+        }
+      }
+      frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
+  function handleDragStart(event: any) {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    dragStateRef.current = {
+      isDragging: false,
+      startX: event.clientX,
+      scrollLeft: viewport.scrollLeft,
+      pointerId: event.pointerId,
+    }
+  }
+
+  function handleDragMove(event: any) {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const state = dragStateRef.current
+    const delta = event.clientX - state.startX
+    if (!state.isDragging && Math.abs(delta) > 5) {
+      state.isDragging = true
+      isDraggingRef.current = true
+      try {
+        viewport.setPointerCapture(state.pointerId)
+      } catch {
+        // ignore
+      }
+      viewport.classList.add("is-dragging")
+    }
+    if (!state.isDragging) return
+    viewport.scrollLeft = state.scrollLeft - delta
+  }
+
+  function handleDragEnd(event: any) {
+    const viewport = viewportRef.current
+    isDraggingRef.current = false
+    if (viewport) {
+      dragStateRef.current.isDragging = false
+      viewport.classList.remove("is-dragging")
+      try {
+        viewport.releasePointerCapture(dragStateRef.current.pointerId)
+      } catch {
+        // ignore
+      }
+    }
   }
 
   return (
@@ -238,27 +397,6 @@ export default function MemoryReel({
           <span>Reel.</span>
           <img alt="" src={assets.titleAccent} />
         </div>
-        <div className="memory-account">
-          <button
-            aria-label="Notifications"
-            className="memory-notification"
-            type="button"
-          >
-            <img alt="" src={assets.bell} />
-            <span />
-          </button>
-          <button
-            aria-label="Open profile"
-            onClick={() => onNavigate("profile")}
-            type="button"
-          >
-            <img
-              alt="Aarav Sharma"
-              className="memory-avatar"
-              src={assets.avatar}
-            />
-          </button>
-        </div>
       </header>
 
       <section className="memory-gallery">
@@ -269,7 +407,15 @@ export default function MemoryReel({
             className="memory-gallery-accent memory-gallery-accent-left"
             src={assets.galleryAccentLeft}
           />
-          <div className="memory-reel-viewport">
+          <div
+            className="memory-reel-viewport"
+            onPointerCancel={handleDragEnd}
+            onPointerDown={handleDragStart}
+            onPointerLeave={handleDragEnd}
+            onPointerMove={handleDragMove}
+            onPointerUp={handleDragEnd}
+            ref={viewportRef}
+          >
             <div className="memory-reel-track">
               {[0, 1].map((copy) => (
                 <div
@@ -486,11 +632,12 @@ export default function MemoryReel({
                 Cancel
               </button>
               <button
-                className="memory-caption-save"
+                className="memory-caption-save disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={uploading}
                 onClick={saveUploads}
                 type="button"
               >
-                Add memory
+                {uploading ? "Uploading..." : "Add memory"}
               </button>
             </div>
           </div>
@@ -535,6 +682,14 @@ export default function MemoryReel({
             <div className="memory-viewer-caption">
               <span>{activeMedia.type === "video" ? "Video memory" : "Photo memory"}</span>
               <strong>{activeMedia.label}</strong>
+              <button
+                className={`memory-viewer-like ${activeMedia.liked ? "liked" : ""}`}
+                onClick={() => toggleLike(activeMedia)}
+                type="button"
+              >
+                <span aria-hidden="true">♥</span>
+                {activeMedia.likesCount ?? 0}
+              </button>
             </div>
           </div>
         </div>

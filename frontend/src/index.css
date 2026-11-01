@@ -1825,13 +1825,22 @@
 .memory-reel-track {
   display: flex;
   width: max-content;
-  animation: memory-cinema-roll 38s linear infinite;
   will-change: transform;
 }
 
-.memory-reel-viewport:hover .memory-reel-track,
-.memory-reel-viewport:focus-within .memory-reel-track {
-  animation-play-state: paused;
+.memory-reel-viewport {
+  overflow-x: auto;
+  scrollbar-width: none;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.memory-reel-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.memory-reel-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .memory-reel-set {
@@ -2011,6 +2020,39 @@
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.memory-like-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgb(24 17 31 / 78%);
+  padding: 4px 8px;
+  color: white;
+  font-size: 12px;
+}
+
+.memory-viewer-like {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgb(255 255 255 / 40%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  padding: 6px 12px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.memory-viewer-like.liked {
+  background: rgb(220 38 38 / 70%);
+  border-color: rgb(220 38 38 / 90%);
 }
 
 .memory-caption-dialog {

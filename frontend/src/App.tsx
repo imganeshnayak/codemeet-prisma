@@ -74,7 +74,7 @@ type Task = {
   points: string
   days: string
   image: string
-  createEvent?: boolean
+  donation?: boolean
 }
 
 const tasks: Task[] = [
@@ -103,7 +103,7 @@ const tasks: Task[] = [
     points: "72",
     days: "Create event",
     image: "/assets/d7a6c.png",
-    createEvent: true,
+    donation: true,
   },
   {
     category: "Community",
@@ -548,33 +548,29 @@ function TaskCard({
   task,
   className = "",
   onOpenProof,
-  onSkip,
   onInterest,
   onTrack,
 }: {
   task: Task
   className?: string
   onOpenProof?: () => void
-  onSkip?: () => void
   onInterest?: () => void
   onTrack?: () => void
 }) {
   return (
     <article
-      className={`task-card touch-pan-y ${task.createEvent ? "cursor-pointer" : ""} ${className}`}
-      onClick={task.createEvent ? onTrack : undefined}
+      className={`task-card touch-pan-y cursor-pointer ${className}`}
       onKeyDown={
-        task.createEvent
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault()
-                onTrack?.()
-              }
-            }
-          : undefined
+        (event) => {
+          if (event.target !== event.currentTarget) return
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            onTrack?.()
+          }
+        }
       }
-      role={task.createEvent ? "button" : undefined}
-      tabIndex={task.createEvent ? 0 : undefined}
+      role="button"
+      tabIndex={0}
     >
       <div className="relative h-[208px] overflow-hidden rounded-t-[26px] sm:h-[250px]">
         <img
@@ -640,7 +636,10 @@ function TaskCard({
           </span>
           <button
             className="font-outfit-bold flex items-center gap-1 whitespace-nowrap text-[#8c23df]"
-            onClick={onOpenProof}
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpenProof?.()
+            }}
             type="button"
           >
             View Details <Icon className="h-4 w-4" name="arrow" />
@@ -693,39 +692,66 @@ function BottomNav({
 }
 
 function TasksScreen({
+  current,
+  dislikedTaskTitles,
+  onCurrentChange,
+  onDislike,
+  onOpenTask,
   onLogout,
   onNavigate,
   onOpenProof,
-  onTrack,
 }: {
+  current: number
+  dislikedTaskTitles: string[]
+  onCurrentChange: (index: number) => void
+  onDislike: (task: Task) => void
+  onOpenTask: (task: Task) => void
   onLogout: () => void
   onNavigate: (screen: AppScreen) => void
   onOpenProof: () => void
-  onTrack: () => void
 }) {
-  const [current, setCurrent] = useState(0)
   const [direction, setDirection] = useState<"left" | "right" | null>(null)
   const [notice, setNotice] = useState("")
   const swipeStart = useRef<{ x: number; y: number } | null>(null)
   const suppressClick = useRef(false)
+  const noticeTimeout = useRef<number | null>(null)
+  const availableTasks = tasks.filter(
+    (availableTask) => !dislikedTaskTitles.includes(availableTask.title),
+  )
+  const task = availableTasks[current]
 
   function swipe(nextDirection: "left" | "right") {
-    if (direction) return
+    if (direction || !task) return
+    if (noticeTimeout.current !== null) {
+      window.clearTimeout(noticeTimeout.current)
+      noticeTimeout.current = null
+    }
+    setNotice("")
     setDirection(nextDirection)
-    setNotice(
-      nextDirection === "right"
-        ? "Task added to your interests"
-        : "Task skipped",
-    )
+    if (nextDirection === "left") {
+      setNotice(`Disliked: ${task.title}`)
+      noticeTimeout.current = window.setTimeout(() => {
+        setNotice("")
+        noticeTimeout.current = null
+      }, 3000)
+    }
     window.setTimeout(() => {
-      setCurrent((index) => (index + 1) % tasks.length)
+      if (nextDirection === "left") {
+        onDislike(task)
+        onCurrentChange(
+          Math.max(0, Math.min(current, availableTasks.length - 2)),
+        )
+      } else {
+        onCurrentChange((current + 1) % availableTasks.length)
+      }
       setDirection(null)
-      window.setTimeout(() => setNotice(""), 1300)
     }, 350)
   }
 
-  const task = tasks[current]
-  const nextTask = tasks[(current + 1) % tasks.length]
+  const nextTask =
+    availableTasks.length > 1
+      ? availableTasks[(current + 1) % availableTasks.length]
+      : task
 
   return (
     <main className="task-page min-h-dvh overflow-hidden bg-[#f7efff] pb-[104px] text-[#18151d]">
@@ -750,78 +776,91 @@ function TasksScreen({
       </header>
 
       <section className="mx-auto max-w-[1100px] px-5 sm:px-8">
-        <div className="relative mx-auto max-w-[710px] pt-7">
-          <div className="task-card task-card-back absolute inset-x-6 top-1 rotate-[5deg] opacity-70">
-            <div className="h-[320px] overflow-hidden rounded-[26px]">
-              <img
-                alt=""
-                className="h-full w-full object-cover"
-                draggable={false}
-                src={nextTask.image}
+        {task ? (
+          <div className="relative mx-auto max-w-[710px] pt-7">
+            {nextTask && nextTask !== task && (
+              <div className="task-card task-card-back absolute inset-x-6 top-1 rotate-[5deg] opacity-70">
+                <div className="h-[320px] overflow-hidden rounded-[26px]">
+                  <img
+                    alt=""
+                    className="h-full w-full object-cover"
+                    draggable={false}
+                    src={nextTask.image}
+                  />
+                </div>
+              </div>
+            )}
+            <div
+              className={`relative z-10 transition duration-300 ${
+                direction === "left"
+                  ? "-translate-x-[120%] -rotate-12 opacity-0"
+                  : ""
+              } ${
+                direction === "right"
+                  ? "translate-x-[120%] rotate-12 opacity-0"
+                  : ""
+              }`}
+              onClick={(event) => {
+                if (
+                  event.defaultPrevented ||
+                  (event.target instanceof Element &&
+                    event.target.closest("button"))
+                ) {
+                  return
+                }
+                onOpenTask(task)
+              }}
+              onPointerCancel={() => {
+                swipeStart.current = null
+              }}
+              onPointerDown={(event) => {
+                if (
+                  direction ||
+                  (event.target instanceof Element &&
+                    event.target.closest("button"))
+                ) {
+                  return
+                }
+                swipeStart.current = { x: event.clientX, y: event.clientY }
+                event.currentTarget.setPointerCapture(event.pointerId)
+              }}
+              onPointerUp={(event) => {
+                const start = swipeStart.current
+                swipeStart.current = null
+                if (!start) return
+                const distanceX = event.clientX - start.x
+                const distanceY = event.clientY - start.y
+                if (
+                  Math.abs(distanceX) >= 70 &&
+                  Math.abs(distanceX) > Math.abs(distanceY)
+                ) {
+                  suppressClick.current = true
+                  swipe(distanceX < 0 ? "left" : "right")
+                  window.setTimeout(() => {
+                    suppressClick.current = false
+                  }, 500)
+                }
+              }}
+              onClickCapture={(event) => {
+                if (!suppressClick.current) return
+                suppressClick.current = false
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+            >
+              <TaskCard
+                onInterest={() => onOpenTask(task)}
+                onOpenProof={onOpenProof}
+                onTrack={() => onOpenTask(task)}
+                task={task}
               />
             </div>
           </div>
-          <div
-            className={`relative z-10 transition duration-300 ${
-              direction === "left"
-                ? "-translate-x-[120%] -rotate-12 opacity-0"
-                : ""
-            } ${
-              direction === "right"
-                ? "translate-x-[120%] rotate-12 opacity-0"
-                : ""
-            }`}
-            onPointerCancel={() => {
-              swipeStart.current = null
-            }}
-            onPointerDown={(event) => {
-              if (
-                direction ||
-                (event.target instanceof Element &&
-                  event.target.closest("button"))
-              ) {
-                return
-              }
-              swipeStart.current = { x: event.clientX, y: event.clientY }
-            }}
-            onPointerUp={(event) => {
-              const start = swipeStart.current
-              swipeStart.current = null
-              if (!start) return
-              const distanceX = event.clientX - start.x
-              const distanceY = event.clientY - start.y
-              if (
-                Math.abs(distanceX) >= 70 &&
-                Math.abs(distanceX) > Math.abs(distanceY)
-              ) {
-                suppressClick.current = true
-                swipe(distanceX < 0 ? "left" : "right")
-                window.setTimeout(() => {
-                  suppressClick.current = false
-                }, 0)
-              }
-            }}
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect()
-              const isRight = event.clientX - rect.left > rect.width / 2
-              swipe(isRight ? "right" : "left")
-            }}
-            onClickCapture={(event) => {
-              if (!suppressClick.current) return
-              suppressClick.current = false
-              event.preventDefault()
-              event.stopPropagation()
-            }}
-          >
-            <TaskCard
-              onInterest={() => swipe("right")}
-              onOpenProof={onOpenProof}
-              onSkip={() => swipe("left")}
-              onTrack={onTrack}
-              task={task}
-            />
-          </div>
-        </div>
+        ) : (
+          <p className="font-outfit-semibold mx-auto mt-12 max-w-[710px] rounded-2xl bg-white p-8 text-center text-[#625c68] shadow-sm">
+            No more tasks to review right now.
+          </p>
+        )}
       </section>
 
       {notice && (
@@ -830,7 +869,7 @@ function TasksScreen({
           role="status"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#d8f23c]">
-            <Icon name="check" />
+            <Icon className="h-4 w-4" name="check" />
           </span>
           {notice}
         </div>
@@ -1528,13 +1567,19 @@ function EditProfileScreen({
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>(() =>
-    getStoredToken() ? "home" : "login",
-  )
+  const [screen, setScreen] = useState<Screen>("home")
+  const [currentTask, setCurrentTask] = useState(0)
+  const [dislikedTaskTitles, setDislikedTaskTitles] = useState<string[]>([])
   const [events, setEvents] = useState<SevaEvent[]>(initialEvents)
   const [selectedEventId, setSelectedEventId] = useState(
     "organizing-tree-drive",
   )
+  const [taskAssignmentsOrigin, setTaskAssignmentsOrigin] = useState<
+    "tasks" | "my-events"
+  >("my-events")
+  const [eventVolunteersOrigin, setEventVolunteersOrigin] = useState<
+    "swipe-donation" | "my-events" | "tasks"
+  >("my-events")
   const [createOrigin, setCreateOrigin] = useState<
     "swipe-donation" | "my-events" | "tasks"
   >("swipe-donation")
@@ -1603,14 +1648,51 @@ export default function App() {
     setScreen(destination)
   }
 
-  function handleAuthSuccess(user: ApiUser) {
-    setProfile(toProfileData(user))
-    setScreen("home")
-  }
+  function openTask(task: Task) {
+    if (task.donation) {
+      setDonationOrigin("tasks")
+      setScreen("donation-tracker")
+      return
+    }
 
-  function handleLogout() {
-    clearStoredToken()
-    setScreen("login")
+    setEventVolunteersOrigin("tasks")
+    let selectedEvent = events.find(
+      (candidate) =>
+        candidate.role === "attending" && candidate.title === task.title,
+    )
+    if (!selectedEvent) {
+      const eventId = `attending-${task.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")}`
+      selectedEvent = events.find((candidate) => candidate.id === eventId)
+      if (!selectedEvent) {
+        const eventDate = new Date(task.date)
+        if (Number.isNaN(eventDate.getTime())) {
+          throw new Error(`Invalid task date for "${task.title}": ${task.date}`)
+        }
+        selectedEvent = {
+          id: eventId,
+          role: "attending",
+          title: task.title,
+          description: task.description,
+          category: task.category,
+          date: eventDate.toISOString().slice(0, 10),
+          time: task.time,
+          location: task.location,
+          capacity: Number(task.volunteers),
+          skills: "",
+          image: task.image,
+          status: "Upcoming",
+          organizer: "Seva Community",
+          volunteers: Number(task.volunteers),
+          tasks: 0,
+        }
+        setEvents((currentEvents) => [...currentEvents, selectedEvent])
+      }
+    }
+    setSelectedEventId(selectedEvent.id)
+    setScreen("event-volunteers")
   }
 
   if (screen === "donation-tracker") {
@@ -1653,7 +1735,8 @@ export default function App() {
           const { event } = await eventsApi.create(createdEvent)
           const nextEvent: SevaEvent = event
           setEvents((current) => [nextEvent, ...current])
-          setSelectedEventId(nextEvent.id)
+          setSelectedEventId(id)
+          setEventVolunteersOrigin(createOrigin)
           setScreen("event-volunteers")
         }}
       />
@@ -1667,8 +1750,11 @@ export default function App() {
     return (
       <EventVolunteers
         event={selectedEvent}
-        onAssignments={() => setScreen("task-assignments")}
-        onBack={() => setScreen("my-events")}
+        onAssignments={() => {
+          setTaskAssignmentsOrigin(eventVolunteersOrigin)
+          setScreen("task-assignments")
+        }}
+        onBack={() => setScreen(eventVolunteersOrigin)}
         onPhotos={() => setScreen("event-photos")}
       />
     )
@@ -1681,7 +1767,7 @@ export default function App() {
     return (
       <TaskAssignments
         event={selectedEvent}
-        onBack={() => setScreen("my-events")}
+        onBack={() => setScreen(taskAssignmentsOrigin)}
         onPhotos={() => setScreen("event-photos")}
         onVolunteers={() => setScreen("event-volunteers")}
       />
@@ -1698,6 +1784,7 @@ export default function App() {
         }}
         onManage={(event) => {
           setSelectedEventId(event.id)
+          setEventVolunteersOrigin("my-events")
           setScreen("event-volunteers")
         }}
         onNavigate={navigateApp}
@@ -1707,6 +1794,7 @@ export default function App() {
         }}
         onTasks={(event) => {
           setSelectedEventId(event.id)
+          setTaskAssignmentsOrigin("my-events")
           setScreen("task-assignments")
         }}
       />
@@ -1716,16 +1804,21 @@ export default function App() {
   if (screen === "tasks") {
     return (
       <TasksScreen
-        onLogout={handleLogout}
+        current={currentTask}
+        dislikedTaskTitles={dislikedTaskTitles}
+        onLogout={() => setScreen("login")}
+        onCurrentChange={setCurrentTask}
+        onDislike={(task) => {
+          setDislikedTaskTitles((current) =>
+            current.includes(task.title) ? current : [...current, task.title],
+          )
+        }}
         onNavigate={navigateApp}
         onOpenProof={() => {
           setProofOrigin("tasks")
           setScreen("geo-proof")
         }}
-        onTrack={() => {
-          setDonationOrigin("tasks")
-          setScreen("donation-tracker")
-        }}
+        onOpenTask={openTask}
       />
     )
   }

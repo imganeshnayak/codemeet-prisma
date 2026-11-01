@@ -3,6 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
+const memoriesRoutes = require('./routes/memories');
 const eventRoutes = require('./routes/events');
 const articleRoutes = require('./routes/articles');
 
@@ -18,6 +19,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/memories', memoriesRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/articles', articleRoutes);
 
