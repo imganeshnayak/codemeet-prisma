@@ -38,16 +38,22 @@ async function requireAuth(req, res, next) {
 async function optionalAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) return next();
+
+  if (scheme !== 'Bearer' || !token) {
+    return next();
+  }
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(payload.sub);
-    if (user) req.user = user;
+    if (user) {
+      req.user = user;
+    }
   } catch (error) {
-    // ignore invalid tokens for optional auth
+    // Ignore invalid tokens for optional auth
   }
+
   return next();
 }
 
-module.exports = { requireAuth, signToken, optionalAuth };
+module.exports = { requireAuth, optionalAuth, signToken };

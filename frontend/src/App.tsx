@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react"
+import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import {
   ApiError,
   ApiUser,
@@ -9,10 +9,16 @@ import {
   profileApi,
   storeToken,
   eventsApi,
+  tasksApi,
+  donationsApi,
 } from "./api"
 import GeoTagProof from "./GeoTagProof"
 import MemoryReel from "./MemoryReel"
 import DonationTracker from "./DonationTracker"
+import FeedDonationScreen from "./FeedDonationScreen"
+import DonationCampaignAdmin from "./DonationCampaignAdmin"
+import { ApiDonationCampaign } from "./api"
+import { ApiDonationTicket } from "./api"
 import PixelAdventureMap from "./PixelAdventureMap"
 import PixelLeaderboard from "./PixelLeaderboard"
 import SwipeDonation from "./SwipeDonation"
@@ -30,12 +36,17 @@ import {
   SevaEvent,
 } from "./events"
 
+<<<<<<< HEAD
 type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "accepted-volunteers" | "task-assignments" | "event-community" | "donation-tracker" | "my-events"
 type EventPage = "event-volunteers" | "task-assignments" | "event-photos" | "event-community"
+=======
+type Screen = "login" | "register" | "home" | "tasks" | "arena" | "memories" | "profile" | "edit-profile" | "geo-proof" | "event-photos" | "swipe-donation" | "create-event" | "event-volunteers" | "task-assignments" | "donation-tracker" | "donate-feed" | "donation-campaign-admin" | "my-events"
+>>>>>>> 688a833486bc0931d6082525e6ee8de2bf311d3a
 type AppScreen = "home" | "tasks" | "arena" | "memories" | "profile" | "my-events"
 type IconName = "arrow" | "award" | "back" | "bell" | "bolt" | "calendar" | "camera" | "chart" | "check" | "chevron" | "close" | "edit" | "eye" | "flame" | "heart" | "home" | "image" | "leaf" | "location" | "lock" | "mail" | "profile" | "settings" | "shield" | "spark" | "star" | "target" | "tasks" | "trophy" | "users"
 
 type ProfileData = {
+  id: string
   name: string
   email: string
   location: string
@@ -46,6 +57,7 @@ type ProfileData = {
 
 function toProfileData(user: ApiUser): ProfileData {
   return {
+    id: user.id,
     name: user.name,
     email: user.email,
     location: user.location,
@@ -86,6 +98,9 @@ function getEventPageFromHash(): { screen: EventPage; eventId: string } | null {
 }
 
 type Task = {
+  id?: string
+  creatorId?: string
+  eventId?: string
   category: string
   title: string
   location: string
@@ -96,7 +111,7 @@ type Task = {
   points: string
   days: string
   image: string
-  createEvent?: boolean
+  donation?: boolean
 }
 
 const tasks: Task[] = [
@@ -125,7 +140,7 @@ const tasks: Task[] = [
     points: "72",
     days: "Create event",
     image: "/assets/d7a6c.png",
-    createEvent: true,
+    donation: true,
   },
   {
     category: "Community",
@@ -159,6 +174,7 @@ function Icon({
   name,
   className = "h-5 w-5",
 }: {
+  tasks: Task[]
   name: IconName
   className?: string
 }) {
@@ -570,33 +586,29 @@ function TaskCard({
   task,
   className = "",
   onOpenProof,
-  onSkip,
   onInterest,
   onTrack,
 }: {
   task: Task
   className?: string
   onOpenProof?: () => void
-  onSkip?: () => void
   onInterest?: () => void
   onTrack?: () => void
 }) {
   return (
     <article
-      className={`task-card touch-pan-y ${task.createEvent ? "cursor-pointer" : ""} ${className}`}
-      onClick={task.createEvent ? onTrack : undefined}
+      className={`task-card touch-pan-y cursor-pointer ${className}`}
       onKeyDown={
-        task.createEvent
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault()
-                onTrack?.()
-              }
-            }
-          : undefined
+        (event) => {
+          if (event.target !== event.currentTarget) return
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            onTrack?.()
+          }
+        }
       }
-      role={task.createEvent ? "button" : undefined}
-      tabIndex={task.createEvent ? 0 : undefined}
+      role="button"
+      tabIndex={0}
     >
       <div className="relative h-[208px] overflow-hidden rounded-t-[26px] sm:h-[250px]">
         <img
@@ -660,13 +672,6 @@ function TaskCard({
             <Icon className="h-5 w-5 text-[#2f9c58]" name="leaf" />
             Earn {task.points} Impact Points
           </span>
-          <button
-            className="font-outfit-bold flex items-center gap-1 whitespace-nowrap text-[#8c23df]"
-            onClick={onOpenProof}
-            type="button"
-          >
-            View Details <Icon className="h-4 w-4" name="arrow" />
-          </button>
         </div>
       </div>
     </article>
@@ -715,39 +720,82 @@ function BottomNav({
 }
 
 function TasksScreen({
+  tasks: feedTasks,
+  current,
+  dislikedTaskTitles,
+  hiddenTaskIds,
+  hiddenTaskCreatorId,
+  onCurrentChange,
+  onDislike,
+  onOpenTask,
+  onLikeTask,
   onLogout,
   onNavigate,
   onOpenProof,
-  onTrack,
+  onRefresh,
 }: {
+  current: number
+  dislikedTaskTitles: string[]
+  hiddenTaskIds: string[]
+  hiddenTaskCreatorId?: string
+  onCurrentChange: (index: number) => void
+  onDislike: (task: Task) => void
+  onOpenTask: (task: Task) => void
+  onLikeTask: (task: Task) => void
   onLogout: () => void
   onNavigate: (screen: AppScreen) => void
   onOpenProof: () => void
-  onTrack: () => void
+  onRefresh?: () => void
 }) {
-  const [current, setCurrent] = useState(0)
+  useEffect(() => {
+    onRefresh?.()
+  }, [onRefresh])
   const [direction, setDirection] = useState<"left" | "right" | null>(null)
   const [notice, setNotice] = useState("")
   const swipeStart = useRef<{ x: number; y: number } | null>(null)
   const suppressClick = useRef(false)
+  const noticeTimeout = useRef<number | null>(null)
+  const availableTasks = feedTasks.filter(
+    (availableTask) =>
+      !dislikedTaskTitles.includes(availableTask.title) &&
+      (!availableTask.eventId || !hiddenTaskIds.includes(availableTask.eventId)) &&
+      (!hiddenTaskCreatorId || availableTask.creatorId !== hiddenTaskCreatorId),
+  )
+  const task = availableTasks[current]
 
   function swipe(nextDirection: "left" | "right") {
-    if (direction) return
+    if (direction || !task) return
+    if (noticeTimeout.current !== null) {
+      window.clearTimeout(noticeTimeout.current)
+      noticeTimeout.current = null
+    }
+    setNotice("")
     setDirection(nextDirection)
-    setNotice(
-      nextDirection === "right"
-        ? "Task added to your interests"
-        : "Task skipped",
-    )
+    if (nextDirection === "left") {
+      setNotice(`Disliked: ${task.title}`)
+      noticeTimeout.current = window.setTimeout(() => {
+        setNotice("")
+        noticeTimeout.current = null
+      }, 3000)
+    }
     window.setTimeout(() => {
-      setCurrent((index) => (index + 1) % tasks.length)
+      if (nextDirection === "left") {
+        onDislike(task)
+        onCurrentChange(
+          Math.max(0, Math.min(current, availableTasks.length - 2)),
+        )
+      } else {
+        onLikeTask(task)
+        onCurrentChange((current + 1) % availableTasks.length)
+      }
       setDirection(null)
-      window.setTimeout(() => setNotice(""), 1300)
     }, 350)
   }
 
-  const task = tasks[current]
-  const nextTask = tasks[(current + 1) % tasks.length]
+  const nextTask =
+    availableTasks.length > 1
+      ? availableTasks[(current + 1) % availableTasks.length]
+      : task
 
   return (
     <main className="task-page min-h-dvh overflow-hidden bg-[#f7efff] pb-[104px] text-[#18151d]">
@@ -768,91 +816,95 @@ function TasksScreen({
             <Icon className="h-6 w-6" name="bell" />
             <span className="absolute right-2 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#ff3d56]" />
           </button>
-          <button
-            aria-label="Log out"
-            className="font-outfit-bold flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#18151d] bg-[#d8f23c] text-sm"
-            onClick={onLogout}
-            title="Log out"
-            type="button"
-          >
-            AS
-          </button>
         </div>
       </header>
 
       <section className="mx-auto max-w-[1100px] px-5 sm:px-8">
-        <div className="relative mx-auto max-w-[710px] pt-7">
-          <div className="task-card task-card-back absolute inset-x-6 top-1 rotate-[5deg] opacity-70">
-            <div className="h-[320px] overflow-hidden rounded-[26px]">
-              <img
-                alt=""
-                className="h-full w-full object-cover"
-                draggable={false}
-                src={nextTask.image}
+        {task ? (
+          <div className="relative mx-auto max-w-[710px] pt-7">
+            {nextTask && nextTask !== task && (
+              <div className="task-card task-card-back absolute inset-x-6 top-1 rotate-[5deg] opacity-70">
+                <div className="h-[320px] overflow-hidden rounded-[26px]">
+                  <img
+                    alt=""
+                    className="h-full w-full object-cover"
+                    draggable={false}
+                    src={nextTask.image}
+                  />
+                </div>
+              </div>
+            )}
+            <div
+              className={`relative z-10 transition duration-300 ${
+                direction === "left"
+                  ? "-translate-x-[120%] -rotate-12 opacity-0"
+                  : ""
+              } ${
+                direction === "right"
+                  ? "translate-x-[120%] rotate-12 opacity-0"
+                  : ""
+              }`}
+              onClick={(event) => {
+                if (
+                  event.defaultPrevented ||
+                  (event.target instanceof Element &&
+                    event.target.closest("button"))
+                ) {
+                  return
+                }
+                onOpenTask(task)
+              }}
+              onPointerCancel={() => {
+                swipeStart.current = null
+              }}
+              onPointerDown={(event) => {
+                if (
+                  direction ||
+                  (event.target instanceof Element &&
+                    event.target.closest("button"))
+                ) {
+                  return
+                }
+                swipeStart.current = { x: event.clientX, y: event.clientY }
+                event.currentTarget.setPointerCapture(event.pointerId)
+              }}
+              onPointerUp={(event) => {
+                const start = swipeStart.current
+                swipeStart.current = null
+                if (!start) return
+                const distanceX = event.clientX - start.x
+                const distanceY = event.clientY - start.y
+                if (
+                  Math.abs(distanceX) >= 70 &&
+                  Math.abs(distanceX) > Math.abs(distanceY)
+                ) {
+                  suppressClick.current = true
+                  swipe(distanceX < 0 ? "left" : "right")
+                  window.setTimeout(() => {
+                    suppressClick.current = false
+                  }, 500)
+                }
+              }}
+              onClickCapture={(event) => {
+                if (!suppressClick.current) return
+                suppressClick.current = false
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+            >
+              <TaskCard
+                onInterest={() => onLikeTask(task)}
+                onOpenProof={onOpenProof}
+                onTrack={() => onOpenTask(task)}
+                task={task}
               />
             </div>
           </div>
-          <div
-            className={`relative z-10 transition duration-300 ${
-              direction === "left"
-                ? "-translate-x-[120%] -rotate-12 opacity-0"
-                : ""
-            } ${
-              direction === "right"
-                ? "translate-x-[120%] rotate-12 opacity-0"
-                : ""
-            }`}
-            onPointerCancel={() => {
-              swipeStart.current = null
-            }}
-            onPointerDown={(event) => {
-              if (
-                direction ||
-                (event.target instanceof Element &&
-                  event.target.closest("button"))
-              ) {
-                return
-              }
-              swipeStart.current = { x: event.clientX, y: event.clientY }
-            }}
-            onPointerUp={(event) => {
-              const start = swipeStart.current
-              swipeStart.current = null
-              if (!start) return
-              const distanceX = event.clientX - start.x
-              const distanceY = event.clientY - start.y
-              if (
-                Math.abs(distanceX) >= 70 &&
-                Math.abs(distanceX) > Math.abs(distanceY)
-              ) {
-                suppressClick.current = true
-                swipe(distanceX < 0 ? "left" : "right")
-                window.setTimeout(() => {
-                  suppressClick.current = false
-                }, 0)
-              }
-            }}
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect()
-              const isRight = event.clientX - rect.left > rect.width / 2
-              swipe(isRight ? "right" : "left")
-            }}
-            onClickCapture={(event) => {
-              if (!suppressClick.current) return
-              suppressClick.current = false
-              event.preventDefault()
-              event.stopPropagation()
-            }}
-          >
-            <TaskCard
-              onInterest={() => swipe("right")}
-              onOpenProof={onOpenProof}
-              onSkip={() => swipe("left")}
-              onTrack={onTrack}
-              task={task}
-            />
-          </div>
-        </div>
+        ) : (
+          <p className="font-outfit-semibold mx-auto mt-12 max-w-[710px] rounded-2xl bg-white p-8 text-center text-[#625c68] shadow-sm">
+            No more tasks to review right now.
+          </p>
+        )}
       </section>
 
       {notice && (
@@ -861,7 +913,7 @@ function TasksScreen({
           role="status"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#d8f23c]">
-            <Icon name="check" />
+            <Icon className="h-4 w-4" name="check" />
           </span>
           {notice}
         </div>
@@ -1558,25 +1610,126 @@ function EditProfileScreen({
   )
 }
 
+
+
+function parseTimeRange(timeStr: string) {
+  if (!timeStr || typeof timeStr !== "string") return null;
+  const parts = timeStr.split(/\s*(?:–|—|-|to)\s*/i);
+  function parseSingleTime(str: string) {
+    if (!str) return null;
+    const clean = str.trim().toUpperCase();
+    const isPM = clean.includes("PM");
+    const isAM = clean.includes("AM");
+    const match = clean.match(/(\d{1,2})(?::(\d{2}))?/);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2] ? parseInt(match[2], 10) : 0;
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+  const start = parseSingleTime(parts[0]);
+  if (start === null) return null;
+  const end = parts.length > 1 && parseSingleTime(parts[1]) !== null
+    ? parseSingleTime(parts[1])!
+    : start + 120;
+  return { start, end: end < start ? end + 1440 : end };
+}
+
+function doSchedulesClash(date1: string, time1: string, date2: string, time2: string) {
+  if (!date1 || !date2) return false;
+  const d1 = String(date1).slice(0, 10);
+  const d2 = String(date2).slice(0, 10);
+  if (d1 !== d2) return false;
+
+  const r1 = parseTimeRange(time1);
+  const r2 = parseTimeRange(time2);
+  if (!r1 || !r2) {
+    return String(time1).trim().toLowerCase() === String(time2).trim().toLowerCase();
+  }
+  return r1.start < r2.end && r2.start < r1.end;
+}
+
+type ClashModalState = {
+  currentEvent: string;
+  targetEvent: string;
+  date: string;
+  time: string;
+  customMessage?: string;
+} | null;
+
+function eventToTask(e: ApiEvent | SevaEvent): Task {
+  return {
+    id: `event-${e.id}`,
+    category: e.category || "Community",
+    title: e.title,
+    location: e.location,
+    description: e.description,
+    date: e.date,
+    time: e.time,
+    volunteers: String(e.volunteers || 0),
+    points: String(50 + (e.tasks || 0) * 15),
+    days: e.status === "Upcoming" ? "Upcoming" : "Active now",
+    image: e.image || "/assets/task-tree.jpg",
+    donation: false,
+    eventId: e.id,
+  }
+}
+
+function campaignToTask(c: ApiDonationCampaign): Task {
+  return {
+    id: `campaign-${c.id}`,
+    category: `${c.category} Drive`,
+    title: c.title,
+    location: c.location,
+    description: c.description || `Sponsor ${c.item} for ${c.beneficiary}`,
+    date: "Live Campaign",
+    time: `₹${c.unitCost} / unit`,
+    volunteers: `${c.unitsSponsored}/${c.targetUnits}`,
+    points: "100",
+    days: "Donate & Track",
+    image: c.image || "/assets/d7a6c.png",
+    donation: true,
+    eventId: c.id,
+  }
+}
+
 export default function App() {
+<<<<<<< HEAD
   const [screen, setScreen] = useState<Screen>(() => {
     const eventPage = getEventPageFromHash()
     return getStoredToken() && eventPage ? eventPage.screen : getStoredToken() ? "home" : "login"
   })
+=======
+  const [screen, setScreen] = useState<Screen>("home")
+  const [currentTask, setCurrentTask] = useState(0)
+  const [feedTasks, setFeedTasks] = useState<Task[]>(tasks)
+  const [dislikedTaskTitles, setDislikedTaskTitles] = useState<string[]>([])
+>>>>>>> 688a833486bc0931d6082525e6ee8de2bf311d3a
   const [events, setEvents] = useState<SevaEvent[]>(initialEvents)
   const [selectedEventId, setSelectedEventId] = useState(() =>
     getEventPageFromHash()?.eventId || "organizing-tree-drive",
   )
+  const [taskAssignmentsOrigin, setTaskAssignmentsOrigin] = useState<
+    "tasks" | "my-events"
+  >("my-events")
+  const [eventVolunteersOrigin, setEventVolunteersOrigin] = useState<
+    "swipe-donation" | "my-events" | "tasks"
+  >("my-events")
   const [createOrigin, setCreateOrigin] = useState<
     "swipe-donation" | "my-events" | "tasks"
   >("swipe-donation")
   const [proofOrigin, setProofOrigin] = useState<
     "home" | "tasks" | "my-events"
   >("tasks")
+  const [activeTicket, setActiveTicket] = useState<ApiDonationTicket | null>(null)
+  const [selectedCampaign, setSelectedCampaign] = useState<ApiDonationCampaign | null>(null)
+  const [clashModal, setClashModal] = useState<ClashModalState>(null)
   const [donationOrigin, setDonationOrigin] = useState<
     "swipe-donation" | "tasks"
   >("tasks")
   const [profile, setProfile] = useState<ProfileData>({
+    id: "",
     name: "Aarav Sharma",
     email: "aarav@example.com",
     location: "Mangaluru, Karnataka",
@@ -1643,6 +1796,57 @@ export default function App() {
     }
   }, [])
 
+  const loadCommunityFeed = useCallback(async () => {
+    try {
+      const [allEventsRes, tasksFeedRes, campaignsRes] = await Promise.allSettled([
+        eventsApi.listAll(),
+        tasksApi.listFeed(),
+        donationsApi.listCampaigns(),
+      ]);
+
+      const fetchedTasks: Task[] = [];
+
+      if (allEventsRes.status === "fulfilled" && allEventsRes.value?.events) {
+        const publicEvents = allEventsRes.value.events;
+        setEvents((current) => {
+          const existingIds = new Set(current.map((e) => e.id));
+          return [
+            ...current,
+            ...publicEvents.filter((e) => !existingIds.has(e.id)),
+          ];
+        });
+        for (const ev of publicEvents) {
+          fetchedTasks.push(eventToTask(ev));
+        }
+      }
+
+      if (campaignsRes.status === "fulfilled" && campaignsRes.value?.campaigns) {
+        for (const camp of campaignsRes.value.campaigns) {
+          fetchedTasks.push(campaignToTask(camp));
+        }
+      }
+
+      if (tasksFeedRes.status === "fulfilled" && tasksFeedRes.value?.tasks) {
+        for (const t of tasksFeedRes.value.tasks) {
+          fetchedTasks.push(t);
+        }
+      }
+
+      if (fetchedTasks.length > 0) {
+        // Put all live DB tasks front and center, with demo fallbacks at the end
+        const fetchedTitles = new Set(fetchedTasks.map((t) => t.title));
+        const remainingFallbacks = tasks.filter((h) => !fetchedTitles.has(h.title));
+        setFeedTasks([...fetchedTasks, ...remainingFallbacks]);
+      }
+    } catch (e) {
+      console.error("Could not load community feed:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCommunityFeed();
+  }, [loadCommunityFeed]);
+
   useEffect(() => {
     if (!getStoredToken()) return
 
@@ -1669,21 +1873,134 @@ export default function App() {
   }, [])
 
   function navigateApp(destination: AppScreen) {
+    if (destination === "tasks") {
+      loadCommunityFeed()
+    }
     setScreen(destination)
   }
 
   function handleAuthSuccess(user: ApiUser) {
     setProfile(toProfileData(user))
+    setCurrentTask(0)
+    setDislikedTaskTitles([])
+    loadCommunityFeed()
+    eventsApi.listMine().then(({ events: storedEvents }) => {
+      setEvents((current) => {
+        const existingIds = new Set(current.map((event) => event.id))
+        return [
+          ...current,
+          ...storedEvents.filter((event) => !existingIds.has(event.id)),
+        ]
+      })
+    }).catch(() => {})
     setScreen("home")
   }
 
   function handleLogout() {
     clearStoredToken()
+    setCurrentTask(0)
+    setDislikedTaskTitles([])
+    setFeedTasks(tasks)
     setScreen("login")
+  }
+  function openTask(task: Task, destination: "event-volunteers" | "my-events" = "event-volunteers") {
+    if (task.donation) {
+      setDonationOrigin("tasks")
+      setScreen("donate-feed")
+      return
+    }
+
+    // Prevent joining/opening an event that conflicts with an existing commitment
+    const clash = events.find(
+      (e) =>
+        (e.role === "attending" || e.role === "organizing") &&
+        e.title !== task.title &&
+        doSchedulesClash(task.date, task.time, e.date, e.time)
+    )
+    if (clash) {
+      setClashModal({
+        currentEvent: clash.title,
+        targetEvent: task.title,
+        date: clash.date,
+        time: clash.time,
+      })
+      return
+    }
+
+    setEventVolunteersOrigin("tasks")
+    let selectedEvent = events.find(
+      (candidate) =>
+        candidate.role === "attending" && candidate.title === task.title,
+    )
+    if (!selectedEvent) {
+      const eventId = `attending-${task.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")}`
+      selectedEvent = events.find((candidate) => candidate.id === eventId)
+      if (!selectedEvent) {
+        let isoDate = new Date().toISOString().slice(0, 10)
+        try {
+          const parsed = new Date(task.date)
+          if (!Number.isNaN(parsed.getTime())) {
+            isoDate = parsed.toISOString().slice(0, 10)
+          }
+        } catch {}
+        selectedEvent = {
+          id: eventId,
+          role: "attending",
+          title: task.title,
+          description: task.description,
+          category: task.category,
+          date: isoDate,
+          time: task.time,
+          location: task.location,
+          capacity: Number(task.volunteers),
+          skills: "",
+          image: task.image,
+          status: "Upcoming",
+          organizer: "Seva Community",
+          volunteers: Number(task.volunteers),
+          tasks: 0,
+        }
+        setEvents((currentEvents) => [...currentEvents, selectedEvent])
+      }
+    }
+    setSelectedEventId(selectedEvent.id)
+    setScreen(destination)
+  }
+
+  function handleTaskInterest(task: Task) {
+    if (task.creatorId && task.creatorId === profile.id) {
+      const organizingEvent = events.find(
+        (event) =>
+          event.role === "organizing" &&
+          (event.title === task.title || event.id === task.id),
+      )
+      if (organizingEvent) {
+        setSelectedEventId(organizingEvent.id)
+        setScreen("my-events")
+        return
+      }
+    }
+    openTask(task, "my-events")
+  }
+
+  if (screen === "donate-feed") {
+    return (
+      <FeedDonationScreen
+        onBack={() => setScreen(donationOrigin || "home")}
+        onSuccess={(ticket) => {
+          setActiveTicket(ticket)
+          setDonationOrigin("donate-feed")
+          setScreen("donation-tracker")
+        }}
+      />
+    )
   }
 
   if (screen === "donation-tracker") {
-    return <DonationTracker onBack={() => setScreen(donationOrigin)} />
+    return <DonationTracker onBack={() => setScreen(donationOrigin || "home")} ticket={activeTicket} />
   }
 
   if (screen === "swipe-donation") {
@@ -1704,13 +2021,149 @@ export default function App() {
 
   if (screen === "home") {
     return (
+      <>
+      
+      {clashModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="relative w-full max-w-[400px] rounded-2xl border-3 border-[#18151d] bg-white p-6 shadow-[6px_6px_0_#18151d]">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-[#ffe4e6] text-2xl shadow-[2px_2px_0_#18151d]">
+              ⏰
+            </div>
+            <span className="font-outfit-bold text-xs uppercase tracking-wider text-[#e11d48]">
+              Schedule Clash Detected
+            </span>
+            <h3 className="font-outfit-extrabold mt-1 text-xl font-extrabold leading-tight text-[#18151d]">
+              Cannot Join Overlapping Event
+            </h3>
+            <div className="mt-3 rounded-xl border-2 border-[#18151d] bg-[#fff5f5] p-3 text-xs text-[#7f1d1d]">
+              <p className="font-outfit-semibold font-bold">
+                {clashModal.customMessage || (
+                  <>
+                    You are already committed to <strong>"{clashModal.currentEvent}"</strong> at the same time:
+                  </>
+                )}
+              </p>
+              <div className="mt-2 flex flex-col gap-0.5 text-[11px] text-[#991b1b]">
+                <span>📅 Date: <strong>{clashModal.date}</strong></span>
+                <span>⏰ Time: <strong>{clashModal.time}</strong></span>
+              </div>
+            </div>
+            <p className="font-outfit-regular mt-3 text-xs leading-relaxed text-[#64748b]">
+              A single volunteer cannot join multiple events simultaneously to prevent overlapping commitments and guarantee on-ground volunteer reliability.
+            </p>
+            <div className="mt-5">
+              <button
+                className="w-full rounded-xl border-2 border-[#18151d] bg-[#18151d] py-2.5 text-center font-outfit-bold text-xs font-bold text-white shadow-[2px_2px_0_#d8f23c] transition hover:bg-[#2b2535]"
+                onClick={() => setClashModal(null)}
+                type="button"
+              >
+                Understood, Keep Current Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <HomeScreen
-        onNavigate={(destination) => setScreen(destination)}
+        onNavigate={navigateApp}
         onVerify={() => {
           setProofOrigin("home")
           setScreen("geo-proof")
         }}
+        onJoinEvent={async (relatedEvent) => {
+          // Check for schedule clash with user's already joined or hosted events
+          const eventDateStr = String(relatedEvent.date);
+          const clash = events.find(
+            (e) =>
+              (e.role === "attending" || e.role === "organizing") &&
+              e.title !== relatedEvent.title &&
+              doSchedulesClash(eventDateStr, relatedEvent.time, e.date, e.time)
+          );
+          if (clash) {
+            setClashModal({
+              currentEvent: clash.title,
+              targetEvent: relatedEvent.title,
+              date: clash.date,
+              time: clash.time,
+            });
+            return;
+          }
+
+          const matchingEvent = events.find(
+            (event) =>
+              event.title === relatedEvent.title &&
+              event.location === relatedEvent.location,
+          )
+
+          if (!matchingEvent) {
+            const parsedDate = new Date(relatedEvent.date)
+            const isoDate = Number.isNaN(parsedDate.getTime())
+              ? new Date().toISOString().slice(0, 10)
+              : parsedDate.toISOString().slice(0, 10)
+            const today = new Date()
+            const eventDay = new Date(`${isoDate}T00:00:00`)
+            const todayDay = new Date(
+              today.getFullYear(),
+              today.getMonth(),
+              today.getDate(),
+            )
+            const status =
+              eventDay < todayDay
+                ? "Completed"
+                : eventDay.getTime() === todayDay.getTime()
+                  ? "Ongoing"
+                  : "Upcoming"
+            const volunteerCount = Number.parseInt(relatedEvent.volunteers, 10)
+            const joinedEvent: SevaEvent = {
+              id: `joined-${relatedEvent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+              role: "attending",
+              title: relatedEvent.title,
+              description: "An upcoming community volunteering opportunity.",
+              category: "Community Action",
+              date: isoDate,
+              time: relatedEvent.time,
+              location: relatedEvent.location,
+              capacity: Number.isFinite(volunteerCount) ? volunteerCount + 1 : 1,
+              skills: "Teamwork",
+              image: "/assets/task-tree.jpg",
+              status,
+              organizer: "SevaSathi Community",
+              assignment: "Volunteer",
+              volunteers: Number.isFinite(volunteerCount) ? volunteerCount : 0,
+              tasks: 0,
+            }
+            setEvents((current) => [joinedEvent, ...current])
+            setSelectedEventId(joinedEvent.id)
+            setScreen("my-events")
+            return
+          }
+
+          if (matchingEvent.role === "attending") {
+            setScreen("my-events")
+            return
+          }
+
+          try {
+            const { event } = await eventsApi.join(matchingEvent.id)
+            setEvents((current) => [
+              ...current.filter((item) => item.id !== event.id),
+              event,
+            ])
+            setScreen("my-events")
+          } catch (requestError) {
+            console.error("Could not join event.", requestError);
+            const msg = requestError instanceof ApiError ? requestError.message : "Schedule clash: Cannot join overlapping events.";
+            setClashModal({
+              currentEvent: "Another committed event",
+              targetEvent: matchingEvent.title,
+              date: matchingEvent.date,
+              time: matchingEvent.time,
+              customMessage: msg,
+            });
+          }
+        }}
       />
+      </>
     )
   }
 
@@ -1722,8 +2175,15 @@ export default function App() {
           const { event } = await eventsApi.create(createdEvent)
           const nextEvent: SevaEvent = event
           setEvents((current) => [nextEvent, ...current])
+          setFeedTasks((current) => [eventToTask(nextEvent), ...current])
           setSelectedEventId(nextEvent.id)
+          setEventVolunteersOrigin(createOrigin)
           setScreen("event-volunteers")
+        }}
+        onCampaignCreated={(campaign) => {
+          setSelectedCampaign(campaign)
+          setFeedTasks((current) => [campaignToTask(campaign), ...current])
+          setScreen("donation-campaign-admin")
         }}
       />
     )
@@ -1736,10 +2196,18 @@ export default function App() {
     return (
       <EventVolunteers
         event={selectedEvent}
+<<<<<<< HEAD
         showNavigationTabs
         onAssignments={() => setScreen("task-assignments")}
         onBack={() => setScreen("my-events")}
         onCommunity={() => setScreen("event-community")}
+=======
+        onAssignments={() => {
+          setTaskAssignmentsOrigin(eventVolunteersOrigin)
+          setScreen("task-assignments")
+        }}
+        onBack={() => setScreen(eventVolunteersOrigin)}
+>>>>>>> 688a833486bc0931d6082525e6ee8de2bf311d3a
         onPhotos={() => setScreen("event-photos")}
         onVolunteers={() => setScreen("accepted-volunteers")}
       />
@@ -1782,10 +2250,17 @@ export default function App() {
     return (
       <TaskAssignments
         event={selectedEvent}
+<<<<<<< HEAD
         showNavigationTabs={false}
         onAssignments={() => setScreen("task-assignments")}
         onBack={() => setScreen("event-volunteers")}
         onCommunity={() => setScreen("event-community")}
+=======
+        onTaskCreated={(task) => {
+          setFeedTasks((current) => [...current, task])
+        }}
+        onBack={() => setScreen(taskAssignmentsOrigin)}
+>>>>>>> 688a833486bc0931d6082525e6ee8de2bf311d3a
         onPhotos={() => setScreen("event-photos")}
         onVolunteers={() => setScreen("accepted-volunteers")}
       />
@@ -1794,6 +2269,49 @@ export default function App() {
 
   if (screen === "my-events") {
     return (
+      <>
+      
+      {clashModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="relative w-full max-w-[400px] rounded-2xl border-3 border-[#18151d] bg-white p-6 shadow-[6px_6px_0_#18151d]">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-[#ffe4e6] text-2xl shadow-[2px_2px_0_#18151d]">
+              ⏰
+            </div>
+            <span className="font-outfit-bold text-xs uppercase tracking-wider text-[#e11d48]">
+              Schedule Clash Detected
+            </span>
+            <h3 className="font-outfit-extrabold mt-1 text-xl font-extrabold leading-tight text-[#18151d]">
+              Cannot Join Overlapping Event
+            </h3>
+            <div className="mt-3 rounded-xl border-2 border-[#18151d] bg-[#fff5f5] p-3 text-xs text-[#7f1d1d]">
+              <p className="font-outfit-semibold font-bold">
+                {clashModal.customMessage || (
+                  <>
+                    You are already committed to <strong>"{clashModal.currentEvent}"</strong> at the same time:
+                  </>
+                )}
+              </p>
+              <div className="mt-2 flex flex-col gap-0.5 text-[11px] text-[#991b1b]">
+                <span>📅 Date: <strong>{clashModal.date}</strong></span>
+                <span>⏰ Time: <strong>{clashModal.time}</strong></span>
+              </div>
+            </div>
+            <p className="font-outfit-regular mt-3 text-xs leading-relaxed text-[#64748b]">
+              A single volunteer cannot join multiple events simultaneously to prevent overlapping commitments and guarantee on-ground volunteer reliability.
+            </p>
+            <div className="mt-5">
+              <button
+                className="w-full rounded-xl border-2 border-[#18151d] bg-[#18151d] py-2.5 text-center font-outfit-bold text-xs font-bold text-white shadow-[2px_2px_0_#d8f23c] transition hover:bg-[#2b2535]"
+                onClick={() => setClashModal(null)}
+                type="button"
+              >
+                Understood, Keep Current Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <MyEvents
         events={events}
         onCreate={() => {
@@ -1802,6 +2320,7 @@ export default function App() {
         }}
         onManage={(event) => {
           setSelectedEventId(event.id)
+          setEventVolunteersOrigin("my-events")
           setScreen("event-volunteers")
         }}
         onNavigate={navigateApp}
@@ -1811,26 +2330,94 @@ export default function App() {
         }}
         onTasks={(event) => {
           setSelectedEventId(event.id)
+          setTaskAssignmentsOrigin("my-events")
           setScreen("task-assignments")
         }}
+      />
+      </>
+    )
+  }
+
+  if (screen === "donation-campaign-admin" && selectedCampaign) {
+    return (
+      <DonationCampaignAdmin
+        campaign={selectedCampaign}
+        onBack={() => setScreen("my-events")}
+        onUpdate={(updated) => setSelectedCampaign(updated)}
       />
     )
   }
 
   if (screen === "tasks") {
     return (
+      <>
+      
+      {clashModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="relative w-full max-w-[400px] rounded-2xl border-3 border-[#18151d] bg-white p-6 shadow-[6px_6px_0_#18151d]">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-[#ffe4e6] text-2xl shadow-[2px_2px_0_#18151d]">
+              ⏰
+            </div>
+            <span className="font-outfit-bold text-xs uppercase tracking-wider text-[#e11d48]">
+              Schedule Clash Detected
+            </span>
+            <h3 className="font-outfit-extrabold mt-1 text-xl font-extrabold leading-tight text-[#18151d]">
+              Cannot Join Overlapping Event
+            </h3>
+            <div className="mt-3 rounded-xl border-2 border-[#18151d] bg-[#fff5f5] p-3 text-xs text-[#7f1d1d]">
+              <p className="font-outfit-semibold font-bold">
+                {clashModal.customMessage || (
+                  <>
+                    You are already committed to <strong>"{clashModal.currentEvent}"</strong> at the same time:
+                  </>
+                )}
+              </p>
+              <div className="mt-2 flex flex-col gap-0.5 text-[11px] text-[#991b1b]">
+                <span>📅 Date: <strong>{clashModal.date}</strong></span>
+                <span>⏰ Time: <strong>{clashModal.time}</strong></span>
+              </div>
+            </div>
+            <p className="font-outfit-regular mt-3 text-xs leading-relaxed text-[#64748b]">
+              A single volunteer cannot join multiple events simultaneously to prevent overlapping commitments and guarantee on-ground volunteer reliability.
+            </p>
+            <div className="mt-5">
+              <button
+                className="w-full rounded-xl border-2 border-[#18151d] bg-[#18151d] py-2.5 text-center font-outfit-bold text-xs font-bold text-white shadow-[2px_2px_0_#d8f23c] transition hover:bg-[#2b2535]"
+                onClick={() => setClashModal(null)}
+                type="button"
+              >
+                Understood, Keep Current Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <TasksScreen
-        onLogout={handleLogout}
+        tasks={feedTasks}
+        current={currentTask}
+        dislikedTaskTitles={dislikedTaskTitles}
+        hiddenTaskIds={events
+          .filter((event) => event.role === "organizing")
+          .map((event) => event.id)}
+        hiddenTaskCreatorId={profile.id || undefined}
+        onRefresh={loadCommunityFeed}
+        onLogout={() => setScreen("login")}
+        onCurrentChange={setCurrentTask}
+        onDislike={(task) => {
+          setDislikedTaskTitles((current) =>
+            current.includes(task.title) ? current : [...current, task.title],
+          )
+        }}
         onNavigate={navigateApp}
         onOpenProof={() => {
           setProofOrigin("tasks")
           setScreen("geo-proof")
         }}
-        onTrack={() => {
-          setDonationOrigin("tasks")
-          setScreen("donation-tracker")
-        }}
+        onOpenTask={openTask}
+        onLikeTask={handleTaskInterest}
       />
+      </>
     )
   }
 

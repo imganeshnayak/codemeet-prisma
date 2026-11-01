@@ -9776,57 +9776,12 @@ export default function PixelLeaderboard() {
               data-node-id="139:15921"
               data-name="Rank"
             >
-              <div
-                className="absolute left-0 overflow-clip size-[29px] top-0"
-                data-node-id="139:15922"
-                data-name="Rank medal"
+              <p
+                className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]"
+                data-node-id="139:15923"
               >
-                <div
-                  className="absolute left-px size-[27px] top-px"
-                  data-node-id="139:15925"
-                  data-name="Medal rim"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalRim}
-                  />
-                </div>
-                <div
-                  className="absolute left-[4px] size-[21px] top-[4px]"
-                  data-node-id="139:15924"
-                  data-name="Medal inset"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalInset}
-                  />
-                </div>
-                <p
-                  className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-none left-[14.5px] text-[#fff3d8] text-[18.85px] text-center top-[3px] w-[29px]"
-                  data-node-id="139:15923"
-                >
-                  1
-                </p>
-              </div>
-            </div>
-            <div
-              className="h-[32px] overflow-clip relative shrink-0 w-[38px]"
-              data-node-id="139:15926"
-              data-name="Rahul · portrait"
-            >
-              <div
-                className="absolute h-[32px] left-[-0.2px] top-0 w-[38.4px]"
-                data-node-id="139:16831"
-                data-name="Smooth illustrated character"
-              >
-                <img
-                  alt=""
-                  className="absolute block inset-0 max-w-none size-full"
-                  src={imgSmoothIllustratedCharacter}
-                />
-              </div>
+                1
+              </p>
             </div>
             <p
               className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
@@ -9851,57 +9806,7 @@ export default function PixelLeaderboard() {
               data-node-id="139:16019"
               data-name="Rank"
             >
-              <div
-                className="absolute left-0 overflow-clip size-[29px] top-0"
-                data-node-id="139:16020"
-                data-name="Rank medal"
-              >
-                <div
-                  className="absolute left-px size-[27px] top-px"
-                  data-node-id="139:16023"
-                  data-name="Medal rim"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalRim1}
-                  />
-                </div>
-                <div
-                  className="absolute left-[4px] size-[21px] top-[4px]"
-                  data-node-id="139:16022"
-                  data-name="Medal inset"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalInset1}
-                  />
-                </div>
-                <p
-                  className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-none left-[14.5px] text-[#fff3d8] text-[18.85px] text-center top-[3px] w-[29px]"
-                  data-node-id="139:16021"
-                >
-                  2
-                </p>
-              </div>
-            </div>
-            <div
-              className="h-[32px] overflow-clip relative shrink-0 w-[38px]"
-              data-node-id="139:16024"
-              data-name="Ananya · portrait"
-            >
-              <div
-                className="absolute h-[32px] left-[-0.2px] top-0 w-[38.4px]"
-                data-node-id="139:16852"
-                data-name="Smooth illustrated character"
-              >
-                <img
-                  alt=""
-                  className="absolute block inset-0 max-w-none size-full"
-                  src={imgSmoothIllustratedCharacter1}
-                />
-              </div>
+              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">2</p>
             </div>
             <p
               className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
@@ -9926,57 +9831,7 @@ export default function PixelLeaderboard() {
               data-node-id="139:16135"
               data-name="Rank"
             >
-              <div
-                className="absolute left-0 overflow-clip size-[29px] top-0"
-                data-node-id="139:16136"
-                data-name="Rank medal"
-              >
-                <div
-                  className="absolute left-px size-[27px] top-px"
-                  data-node-id="139:16139"
-                  data-name="Medal rim"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalRim2}
-                  />
-                </div>
-                <div
-                  className="absolute left-[4px] size-[21px] top-[4px]"
-                  data-node-id="139:16138"
-                  data-name="Medal inset"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalInset2}
-                  />
-                </div>
-                <p
-                  className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-none left-[14.5px] text-[#fff3d8] text-[18.85px] text-center top-[3px] w-[29px]"
-                  data-node-id="139:16137"
-                >
-                  3
-                </p>
-              </div>
-            </div>
-            <div
-              className="h-[32px] overflow-clip relative shrink-0 w-[38px]"
-              data-node-id="139:16140"
-              data-name="Vivek · portrait"
-            >
-              <div
-                className="absolute h-[32px] left-[-0.2px] top-0 w-[38.4px]"
-                data-node-id="139:16873"
-                data-name="Smooth illustrated character"
-              >
-                <img
-                  alt=""
-                  className="absolute block inset-0 max-w-none size-full"
-                  src={imgSmoothIllustratedCharacter2}
-                />
-              </div>
+              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">3</p>
             </div>
             <p
               className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
@@ -10008,23 +9863,6 @@ export default function PixelLeaderboard() {
                 4
               </p>
             </div>
-            <div
-              className="h-[32px] overflow-clip relative shrink-0 w-[38px]"
-              data-node-id="139:16236"
-              data-name="Disha · portrait"
-            >
-              <div
-                className="absolute h-[32px] left-[-0.2px] top-0 w-[38.4px]"
-                data-node-id="139:16903"
-                data-name="Smooth illustrated character"
-              >
-                <img
-                  alt=""
-                  className="absolute block inset-0 max-w-none size-full"
-                  src={imgSmoothIllustratedCharacter}
-                />
-              </div>
-            </div>
             <p
               className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
               data-node-id="139:16326"
@@ -10055,23 +9893,6 @@ export default function PixelLeaderboard() {
                 5
               </p>
             </div>
-            <div
-              className="h-[32px] overflow-clip relative shrink-0 w-[38px]"
-              data-node-id="139:16331"
-              data-name="Megha · portrait"
-            >
-              <div
-                className="absolute h-[32px] left-[-0.2px] top-0 w-[38.4px]"
-                data-node-id="139:16924"
-                data-name="Smooth illustrated character"
-              >
-                <img
-                  alt=""
-                  className="absolute block inset-0 max-w-none size-full"
-                  src={imgSmoothIllustratedCharacter1}
-                />
-              </div>
-            </div>
             <p
               className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
               data-node-id="139:16439"
@@ -10095,57 +9916,7 @@ export default function PixelLeaderboard() {
               data-node-id="139:16514"
               data-name="Rank"
             >
-              <div
-                className="absolute left-0 overflow-clip size-[29px] top-0"
-                data-node-id="139:16515"
-                data-name="Rank medal"
-              >
-                <div
-                  className="absolute left-px size-[27px] top-px"
-                  data-node-id="139:16516"
-                  data-name="Medal rim"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalRim2}
-                  />
-                </div>
-                <div
-                  className="absolute left-[4px] size-[21px] top-[4px]"
-                  data-node-id="139:16517"
-                  data-name="Medal inset"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalInset2}
-                  />
-                </div>
-                <p
-                  className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-none left-[14.5px] text-[#fff3d8] text-[18.85px] text-center top-[3px] w-[29px]"
-                  data-node-id="139:16518"
-                >
-                  6
-                </p>
-              </div>
-            </div>
-            <div
-              className="h-[32px] overflow-clip relative shrink-0 w-[38px]"
-              data-node-id="139:16519"
-              data-name="Arjun · portrait"
-            >
-              <div
-                className="absolute h-[32px] left-[-0.2px] top-0 w-[38.4px]"
-                data-node-id="139:16945"
-                data-name="Smooth illustrated character"
-              >
-                <img
-                  alt=""
-                  className="absolute block inset-0 max-w-none size-full"
-                  src={imgSmoothIllustratedCharacter3}
-                />
-              </div>
+              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">6</p>
             </div>
             <p
               className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"
@@ -10170,57 +9941,7 @@ export default function PixelLeaderboard() {
               data-node-id="139:16613"
               data-name="Rank"
             >
-              <div
-                className="absolute left-0 overflow-clip size-[29px] top-0"
-                data-node-id="139:16614"
-                data-name="Rank medal"
-              >
-                <div
-                  className="absolute left-px size-[27px] top-px"
-                  data-node-id="139:16615"
-                  data-name="Medal rim"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalRim2}
-                  />
-                </div>
-                <div
-                  className="absolute left-[4px] size-[21px] top-[4px]"
-                  data-node-id="139:16616"
-                  data-name="Medal inset"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    src={imgMedalInset2}
-                  />
-                </div>
-                <p
-                  className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-none left-[14.5px] text-[#fff3d8] text-[18.85px] text-center top-[3px] w-[29px]"
-                  data-node-id="139:16617"
-                >
-                  7
-                </p>
-              </div>
-            </div>
-            <div
-              className="h-[32px] overflow-clip relative shrink-0 w-[38px]"
-              data-node-id="139:16618"
-              data-name="Nithin · portrait"
-            >
-              <div
-                className="absolute h-[32px] left-[-0.2px] top-0 w-[38.4px]"
-                data-node-id="139:16975"
-                data-name="Smooth illustrated character"
-              >
-                <img
-                  alt=""
-                  className="absolute block inset-0 max-w-none size-full"
-                  src={imgSmoothIllustratedCharacter4}
-                />
-              </div>
+              <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] left-[9.5px] text-[#171127] text-[21px] text-center top-[3px] w-[29px]">7</p>
             </div>
             <p
               className="[word-break:break-word] flex-[1_0_0] font-['Roboto_Condensed:ExtraBold'] font-extrabold leading-[normal] min-w-px relative text-[#171127] text-[17px]"

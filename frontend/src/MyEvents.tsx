@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { EventRole, EventStatus, formatEventDate, SevaEvent } from "./events"
+import { ApiDonationCampaign, donationsApi } from "./api"
 import NavigationIcon from "./NavigationIcon"
 
 type Destination = "home" | "tasks" | "my-events" | "memories" | "profile"
