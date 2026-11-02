@@ -1,19 +1,13 @@
-import { useState } from "react"
-import { ApiDonationTicket, donationsApi } from "./api"
+import { useEffect, useState } from "react"
+import { ApiDonationCampaign, ApiDonationTicket, donationsApi } from "./api"
 
 type FeedDonationScreenProps = {
   onBack: () => void
   onSuccess: (ticket: ApiDonationTicket) => void
+  campaignId?: string
 }
 
-const mealPresets = [
-  { count: 1, label: "1 Meal", sub: "Nourish 1 Child", popular: false },
-  { count: 5, label: "5 Meals", sub: "Family Plate", popular: true },
-  { count: 10, label: "10 Meals", sub: "Classroom Feast", popular: false },
-  { count: 20, label: "20 Meals", sub: "Shelter Ward", popular: false },
-]
-
-const causes = [
+const defaultCauses = [
   {
     id: "children",
     name: "Children Nutrition Drive",
@@ -37,17 +31,46 @@ const causes = [
 export default function FeedDonationScreen({
   onBack,
   onSuccess,
+  campaignId,
 }: FeedDonationScreenProps) {
+  const [campaign, setCampaign] = useState<ApiDonationCampaign | null>(null)
   const [mealCount, setMealCount] = useState(5)
-  const [selectedCause, setSelectedCause] = useState(causes[0])
+  const [selectedCause, setSelectedCause] = useState(defaultCauses[0])
   const [donorName, setDonorName] = useState("Aarav Sharma")
   const [dedication, setDedication] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [issuedTicket, setIssuedTicket] = useState<ApiDonationTicket | null>(null)
+  const [submitError, setSubmitError] = useState("")
   const [animatingStep, setAnimatingStep] = useState(false)
 
-  const ticketPrice = 50 // ₹50 per meal
+  useEffect(() => {
+    if (!campaignId) return
+    donationsApi
+      .getCampaign(campaignId)
+      .then(({ campaign: c }) => {
+        if (c) {
+          setCampaign(c)
+          setSelectedCause({
+            id: c.campaignId,
+            name: c.title,
+            location: c.location,
+            desc: c.description,
+          })
+        }
+      })
+      .catch(() => undefined)
+  }, [campaignId])
+
+  const unitName = campaign?.donationItem || "Meal"
+  const ticketPrice = campaign?.unitCost || 50
   const totalAmount = mealCount * ticketPrice
+
+  const presets = [
+    { count: 1, label: `1 ${unitName}`, sub: `Sponsor 1`, popular: false },
+    { count: 5, label: `5 ${unitName}s`, sub: `Small Bundle`, popular: true },
+    { count: 10, label: `10 ${unitName}s`, sub: `Group Kit`, popular: false },
+    { count: 20, label: `20 ${unitName}s`, sub: `Community Tier`, popular: false },
+  ]
 
   function handleIncrement() {
     setAnimatingStep(true)
@@ -70,13 +93,18 @@ export default function FeedDonationScreen({
 
   async function handlePurchase() {
     setIsSubmitting(true)
+    setSubmitError("")
     try {
       const res = await donationsApi.purchaseTicket({
         mealCount,
-        cause: selectedCause.name,
-        location: selectedCause.location,
+        unitCount: mealCount,
+        unitName,
+        amount: totalAmount,
+        cause: campaign?.title || selectedCause.name,
+        location: campaign?.location || selectedCause.location,
         donorName: donorName.trim() || "Kind Changemaker",
         dedication: dedication.trim(),
+        campaignId: campaign?.campaignId || campaignId,
       })
 
       if (res?.ticket) {
@@ -84,104 +112,18 @@ export default function FeedDonationScreen({
       } else {
         throw new Error("No ticket returned")
       }
-    } catch {
-      // Offline fallback: create valid local ticket for seamless demo
-      const fallbackTicket: ApiDonationTicket = {
-        id: "tkt-" + Date.now(),
-        ticketId: "FEED-" + Math.floor(1000 + Math.random() * 9000),
-        donorName: donorName.trim() || "Kind Changemaker",
-        donorEmail: "donor@sevasathi.org",
-        mealCount,
-        amount: totalAmount,
-        cause: selectedCause.name,
-        location: selectedCause.location,
-        beneficiaryGroup: "Underprivileged Children & Elders",
-        dedication: dedication.trim(),
-        status: "pledged",
-        stages: [
-          {
-            stage: "pledged",
-            title: "Feeding Ticket Issued & Funds Pledged",
-            description: `Your contribution of ${mealCount} hot nutritious meal tickets has been allocated to today's active feeding run.`,
-            timestamp: new Date().toISOString(),
-            photoUrl: "/assets/donation-tracker/fd25f.png",
-            geoTag: {
-              location: selectedCause.location,
-              coordinates: "12.8718° N, 74.8560° E",
-              verified: true,
-            },
-            volunteer: {
-              name: "Arjun K.",
-              role: "Community Lead",
-              avatar: "AK",
-            },
-            completed: true,
-          },
-          {
-            stage: "procured",
-            title: "Fresh Grains & Vegetables Procured",
-            description: `Rice, lentils, fresh spinach, and spices were purchased from local farmer cooperatives for ${mealCount} meals.`,
-            timestamp: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-            photoUrl: "/assets/donation-tracker/405bb.png",
-            geoTag: {
-              location: "APMC Market Yard, Mangaluru",
-              coordinates: "12.8654° N, 74.8423° E",
-              verified: true,
-            },
-            volunteer: {
-              name: "Sunita Rao",
-              role: "Procurement Volunteer",
-              avatar: "SR",
-            },
-            completed: false,
-          },
-          {
-            stage: "prepared",
-            title: "Cooked in Clean Kitchen & Packed",
-            description:
-              "Wholesome hot meals freshly prepared following strict hygiene protocols and packed into eco-friendly containers.",
-            timestamp: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
-            photoUrl: "/assets/donation-tracker/41231.png",
-            geoTag: {
-              location: "Seva Community Kitchen, Kadri",
-              coordinates: "12.8801° N, 74.8529° E",
-              verified: true,
-            },
-            volunteer: {
-              name: "Karthik Hegde",
-              role: "Kitchen Coordinator",
-              avatar: "KH",
-            },
-            completed: false,
-          },
-          {
-            stage: "distributed",
-            title: "Meals Delivered & Handed Over",
-            description:
-              "Meals warmly served to children and elders with high-precision GPS verification and live photo proof.",
-            timestamp: new Date(Date.now() + 90 * 60 * 1000).toISOString(),
-            photoUrl: "/assets/donation-tracker/ab234.png",
-            geoTag: {
-              location: selectedCause.location,
-              coordinates: "12.8722° N, 74.8588° E",
-              verified: true,
-            },
-            volunteer: {
-              name: "Meera Pai",
-              role: "Field Distribution Volunteer",
-              avatar: "MP",
-            },
-            completed: false,
-          },
-        ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      setIssuedTicket(fallbackTicket)
+    } catch (error: unknown) {
+      setSubmitError(error instanceof Error ? error.message : "Could not create the donation ticket.")
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  const categoryIcon = campaign?.category === "Clothes"
+    ? "👕"
+    : campaign?.category === "Education"
+    ? "📚"
+    : "🍲"
 
   return (
     <main className="font-outfit-regular relative min-h-dvh bg-[#faf6ff] text-[#18151d] pb-24 antialiased selection:bg-[#d8f23c]">
@@ -216,20 +158,28 @@ export default function FeedDonationScreen({
 
         <div className="text-center">
           <span className="font-outfit-extrabold text-xs uppercase tracking-widest text-[#721bd9]">
-            Instant Feeding Pass
+            {campaign ? `${campaign.category} Campaign` : "Instant Impact Pass"}
           </span>
           <h1 className="font-outfit-black text-xl leading-none text-[#18151d]">
-            Donate & Feed
+            {campaign ? campaign.title : "Donate & Support"}
           </h1>
         </div>
 
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] font-outfit-black text-sm shadow-[2px_2px_0_#18151d]">
-          ₹50
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] font-outfit-black text-xs shadow-[2px_2px_0_#18151d]">
+          ₹{ticketPrice}
         </div>
       </header>
 
       {/* Main Content Area */}
       <div className="relative z-10 mx-auto max-w-xl px-5 pt-2">
+        {submitError && (
+          <p
+            className="mb-3 rounded-xl border-2 border-[#b4233c] bg-[#fff0f3] p-3 text-sm text-[#b4233c]"
+            role="alert"
+          >
+            {submitError}
+          </p>
+        )}
         {/* Animated Ticket Stack Preview */}
         <section className="relative my-3 flex flex-col items-center">
           {/* Stack Shadows when count > 1 */}
@@ -260,14 +210,14 @@ export default function FeedDonationScreen({
             <div className="flex items-center justify-between border-b-2 border-dashed border-[#d8cce4] pb-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#18151d] bg-[#d8f23c] shadow-[1px_1px_0_#18151d]">
-                  🍲
+                  {categoryIcon}
                 </span>
                 <div>
                   <div className="font-outfit-black text-xs uppercase tracking-wider text-[#6f19d6]">
                     Live Verification Pass
                   </div>
                   <div className="font-outfit-bold text-sm text-[#18151d]">
-                    Hot Nutritious Thali Meal
+                    {unitName}
                   </div>
                 </div>
               </div>
@@ -277,16 +227,16 @@ export default function FeedDonationScreen({
               </div>
             </div>
 
-            {/* Middle Section: Meal Count & Live Total */}
+            {/* Middle Section: Count & Live Total */}
             <div className="py-4 text-center">
               <span className="font-outfit-semibold text-xs text-[#706478]">
                 YOU ARE SPONSORING
               </span>
               <div className="font-outfit-black my-1 text-4xl tracking-tight text-[#18151d]">
-                {mealCount} {mealCount === 1 ? "Meal Ticket" : "Meal Tickets"}
+                {mealCount} {mealCount === 1 ? `${unitName} Ticket` : `${unitName}s`}
               </div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[#efffdc] px-3 py-1 font-outfit-bold text-xs text-[#208a46]">
-                <span>✓ ₹{ticketPrice} / meal</span>
+                <span>✓ ₹{ticketPrice} / {unitName.toLowerCase()}</span>
                 <span>•</span>
                 <span>Total: ₹{totalAmount}</span>
               </div>
@@ -296,8 +246,8 @@ export default function FeedDonationScreen({
             <div className="flex items-center justify-between border-t-2 border-dashed border-[#d8cce4] pt-3 text-xs">
               <div className="text-left font-outfit-semibold text-[#5c5264]">
                 <div className="text-[10px] uppercase text-[#94879e]">Cause</div>
-                <div className="font-outfit-bold text-[13px] text-[#18151d]">
-                  {selectedCause.name.slice(0, 24)}...
+                <div className="font-outfit-bold text-[13px] text-[#18151d] truncate max-w-[200px]">
+                  {campaign?.title || selectedCause.name}
                 </div>
               </div>
 
@@ -324,10 +274,10 @@ export default function FeedDonationScreen({
         <section className="my-5 rounded-3xl border-2 border-[#18151d] bg-white p-5 shadow-[3px_4px_0_#18151d]">
           <div className="flex items-center justify-between pb-3">
             <span className="font-outfit-bold text-sm text-[#18151d]">
-              Select Meal Count:
+              Select {unitName} Count:
             </span>
             <span className="font-outfit-semibold text-xs text-[#6f19d6]">
-              {mealCount} children nourished today
+              {mealCount} {unitName.toLowerCase()}{mealCount > 1 ? "s" : ""} sponsored
             </span>
           </div>
 
@@ -364,7 +314,7 @@ export default function FeedDonationScreen({
 
           {/* Quick Presets Grid */}
           <div className="mt-4 grid grid-cols-4 gap-2">
-            {mealPresets.map((preset) => {
+            {presets.map((preset) => {
               const selected = mealCount === preset.count
               return (
                 <button
@@ -377,15 +327,15 @@ export default function FeedDonationScreen({
                   onClick={() => handlePresetSelect(preset.count)}
                   type="button"
                 >
-                  <span className="font-outfit-extrabold text-sm">
-                    {preset.label}
+                  <span className="font-outfit-extrabold text-xs text-center truncate w-full">
+                    {preset.count} {unitName}
                   </span>
                   <span
                     className={`text-[10px] font-outfit-semibold ${
                       selected ? "text-[#d8f23c]" : "text-[#7b6d85]"
                     }`}
                   >
-                    ₹{preset.count * 50}
+                    ₹{preset.count * ticketPrice}
                   </span>
                 </button>
               )
@@ -393,53 +343,71 @@ export default function FeedDonationScreen({
           </div>
         </section>
 
-        {/* Cause / Location Picker */}
+        {/* Cause / Location Display or Picker */}
         <section className="my-5 rounded-3xl border-2 border-[#18151d] bg-white p-5 shadow-[3px_4px_0_#18151d]">
           <h2 className="font-outfit-bold pb-2 text-sm text-[#18151d]">
-            Choose Destination Drive & Shelter:
+            {campaign ? "Active Campaign & Beneficiaries:" : "Choose Destination Drive & Shelter:"}
           </h2>
-          <div className="space-y-2.5">
-            {causes.map((cause) => {
-              const active = selectedCause.id === cause.id
-              return (
-                <button
-                  className={`flex w-full items-start gap-3 rounded-2xl border-2 border-[#18151d] p-3 text-left transition ${
-                    active
-                      ? "bg-[#f5e8fc] shadow-[2px_2px_0_#18151d]"
-                      : "bg-[#ffffff] hover:bg-[#fbf7ff]"
-                  }`}
-                  key={cause.id}
-                  onClick={() => setSelectedCause(cause)}
-                  type="button"
-                >
-                  <span
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-[#18151d] ${
-                      active ? "bg-[#6f19d6]" : "bg-white"
+          {campaign ? (
+            <div className="rounded-2xl border-2 border-[#18151d] bg-[#f5e8fc] p-4 shadow-[2px_2px_0_#18151d]">
+              <div className="font-outfit-extrabold text-base text-[#18151d]">
+                {campaign.title}
+              </div>
+              <div className="mt-1 font-outfit-semibold text-xs text-[#6f19d6]">
+                📍 {campaign.location} • Organised by {campaign.organizer}
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-[#5a4d63]">
+                {campaign.description}
+              </p>
+              <div className="mt-3 flex items-center justify-between border-t border-[#dfceee] pt-2 text-xs font-outfit-bold text-[#18151d]">
+                <span>Target: {campaign.targetUnits} {campaign.donationItem}s</span>
+                <span className="text-[#6f19d6]">{campaign.raisedUnits} Sponsored</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {defaultCauses.map((cause) => {
+                const active = selectedCause.id === cause.id
+                return (
+                  <button
+                    className={`flex w-full items-start gap-3 rounded-2xl border-2 border-[#18151d] p-3 text-left transition ${
+                      active
+                        ? "bg-[#f5e8fc] shadow-[2px_2px_0_#18151d]"
+                        : "bg-[#ffffff] hover:bg-[#fbf7ff]"
                     }`}
+                    key={cause.id}
+                    onClick={() => setSelectedCause(cause)}
+                    type="button"
                   >
-                    {active && <span className="h-2 w-2 rounded-full bg-white" />}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-outfit-bold text-sm text-[#18151d]">
-                      {cause.name}
+                    <span
+                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-[#18151d] ${
+                        active ? "bg-[#6f19d6]" : "bg-white"
+                      }`}
+                    >
+                      {active && <span className="h-2 w-2 rounded-full bg-white" />}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-outfit-bold text-sm text-[#18151d]">
+                        {cause.name}
+                      </div>
+                      <div className="font-outfit-semibold text-xs text-[#6f19d6]">
+                        📍 {cause.location}
+                      </div>
+                      <div className="font-outfit-regular mt-0.5 text-xs text-[#6b6074]">
+                        {cause.desc}
+                      </div>
                     </div>
-                    <div className="font-outfit-semibold text-xs text-[#6f19d6]">
-                      📍 {cause.location}
-                    </div>
-                    <div className="font-outfit-regular mt-0.5 text-xs text-[#6b6074]">
-                      {cause.desc}
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </section>
 
         {/* Dedication Input */}
         <section className="my-5 rounded-3xl border-2 border-[#18151d] bg-white p-5 shadow-[3px_4px_0_#18151d]">
           <h2 className="font-outfit-bold pb-1 text-sm text-[#18151d]">
-            Personalize Your Feeding Pass (Optional):
+            Personalize Your Impact Pass (Optional):
           </h2>
           <div className="space-y-3">
             <div>
@@ -487,7 +455,7 @@ export default function FeedDonationScreen({
             {isSubmitting ? (
               <span>Dispensing Your Live Ticket...</span>
             ) : (
-              <span>Purchase & Get Live Feeding Pass • ₹{totalAmount} ➔</span>
+              <span>Confirm & Issue Donation Ticket • ₹{totalAmount} ➔</span>
             )}
           </button>
           <p className="mt-2 text-center font-outfit-semibold text-xs text-[#7c7285]">
@@ -518,11 +486,11 @@ export default function FeedDonationScreen({
                 className="font-outfit-black text-2xl text-[#18151d]"
                 id="ticket-success-title"
               >
-                Feeding Pass Ready!
+                Donation Pass Ready!
               </h3>
               <p className="font-outfit-regular mt-1 text-xs text-[#665b70]">
-                Thank you, {issuedTicket.donorName}! Your {issuedTicket.mealCount}{" "}
-                meals have entered today&apos;s active delivery stream.
+                Thank you, {issuedTicket.donorName}! Your {issuedTicket.unitCount || issuedTicket.mealCount}{" "}
+                {issuedTicket.unitName ? (issuedTicket.unitName + ((issuedTicket.unitCount || issuedTicket.mealCount) > 1 && !issuedTicket.unitName.endsWith("s") ? "s" : "")) : "units"} have entered active live tracking.
               </p>
             </div>
 
@@ -555,4 +523,3 @@ export default function FeedDonationScreen({
     </main>
   )
 }
-

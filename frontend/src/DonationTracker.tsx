@@ -56,56 +56,96 @@ export default function DonationTracker({
   ticket?: ApiDonationTicket | null
 }) {
   const [currentTicket, setCurrentTicket] = useState<ApiDonationTicket | null>(
-    null
+    initialTicket || null
   )
+  const [userTickets, setUserTickets] = useState<ApiDonationTicket[]>([])
   const [selectedProof, setSelectedProof] = useState<ApiDonationStage | null>(null)
-  const [isAdvancing, setIsAdvancing] = useState(false)
-  const [statusNotice, setStatusNotice] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!initialTicket)
   const [loadError, setLoadError] = useState("")
 
   useEffect(() => {
     let active = true
-    setIsLoading(true)
-    setLoadError("")
-    const request = initialTicket?.ticketId
-      ? donationsApi.getTicket(initialTicket.ticketId)
-      : donationsApi.getLatest()
 
-    request
-      .then(({ ticket }) => {
-        if (active) setCurrentTicket(ticket)
-      })
-      .catch((error: unknown) => {
-        if (!active) return
-        setCurrentTicket(null)
-        setLoadError(error instanceof Error ? error.message : "Could not load donation tracking data.")
-      })
-      .finally(() => {
-        if (active) setIsLoading(false)
-      })
+    if (initialTicket?.ticketId) {
+      setCurrentTicket(initialTicket)
+      setIsLoading(false)
+      donationsApi
+        .getTicket(initialTicket.ticketId)
+        .then(({ ticket }) => {
+          if (active && ticket) setCurrentTicket(ticket)
+        })
+        .catch(() => undefined)
+    } else {
+      setIsLoading(true)
+      setLoadError("")
+
+      donationsApi
+        .listMine()
+        .then(({ tickets }) => {
+          if (!active) return
+          if (tickets && tickets.length > 0) {
+            setUserTickets(tickets)
+            setCurrentTicket(tickets[0])
+            setIsLoading(false)
+          } else {
+            donationsApi
+              .getLatest()
+              .then(({ ticket }) => {
+                if (active && ticket) {
+                  setCurrentTicket(ticket)
+                  setIsLoading(false)
+                }
+              })
+              .catch((err: unknown) => {
+                if (!active) return
+                setCurrentTicket(null)
+                setLoadError(
+                  err instanceof Error ? err.message : "No active donation tickets found."
+                )
+                setIsLoading(false)
+              })
+          }
+        })
+        .catch(() => {
+          if (!active) return
+          donationsApi
+            .getLatest()
+            .then(({ ticket }) => {
+              if (active && ticket) {
+                setCurrentTicket(ticket)
+                setIsLoading(false)
+              }
+            })
+            .catch((err: unknown) => {
+              if (!active) return
+              setCurrentTicket(null)
+              setLoadError(
+                err instanceof Error ? err.message : "No active donation tickets found."
+              )
+              setIsLoading(false)
+            })
+        })
+    }
 
     return () => {
       active = false
     }
   }, [initialTicket])
 
-  async function handleAdvanceStage() {
-    if (!currentTicket?.ticketId || isAdvancing) return
-    setIsAdvancing(true)
-    try {
-      const res = await donationsApi.advanceStage(currentTicket.ticketId)
-      if (res?.ticket) {
-        setCurrentTicket(res.ticket)
-        setStatusNotice("Live tracking updated with new on-ground proof!")
-      }
-    } catch (error: unknown) {
-      setStatusNotice(error instanceof Error ? error.message : "Could not update donation tracking.")
-    } finally {
-      setIsAdvancing(false)
-      setTimeout(() => setStatusNotice(""), 3000)
+  // Live auto-refresh from backend API every 6 seconds
+  useEffect(() => {
+    if (!currentTicket?.ticketId) return
+    const refresh = () => {
+      donationsApi
+        .getTicket(currentTicket.ticketId)
+        .then(({ ticket }) => {
+          if (ticket) setCurrentTicket(ticket)
+        })
+        .catch(() => undefined)
     }
-  }
+    const interval = window.setInterval(refresh, 6000)
+    return () => window.clearInterval(interval)
+  }, [currentTicket?.ticketId])
 
   const stages = currentTicket?.stages || []
   const activeStageIndex = stages.findIndex((s) => !s.completed)
@@ -169,13 +209,13 @@ export default function DonationTracker({
           <div className="inline-flex items-center gap-2 rounded-full border-[0.7px] border-[#9800f8] bg-[#f5e8fc] px-[11px] py-1.5">
             <img alt="" className="h-[19px] w-[19px]" src={asset("9d200.svg")} />
             <span className="font-['Inter:Bold'] text-xs font-bold">
-              Live Feeding Tracker
+              {currentTicket.category ? `Live ${currentTicket.category} Tracker` : "Live Donation Tracker"}
             </span>
           </div>
           <h1 className="mt-[10px] font-['Inter:Black'] text-[24px] font-black leading-[1.03] tracking-[-0.9px]">
             Track Your
             <br />
-            Feeding Ticket
+            {currentTicket.unitName || "Donation"} Ticket
             <br />
             with{" "}
             <span className="inline-block rounded-[11px] border-[0.7px] border-[#74852a] bg-[#beff21] px-[5px] leading-[1.15]">
@@ -183,24 +223,50 @@ export default function DonationTracker({
             </span>
           </h1>
           <p className="mt-2 w-[225px] font-['Inter:Regular'] text-[10.5px] leading-[1.32] text-[#33333f]">
-            Verified delivery from local community kitchens to children in need.
+            Verified delivery for {currentTicket.beneficiaryGroup || currentTicket.location}.
           </p>
         </div>
         <HeroArtwork />
       </section>
+
+      {userTickets.length > 1 && (
+        <div className="mx-auto flex max-w-[760px] items-center gap-2 overflow-x-auto px-5 pb-2 no-scrollbar">
+          <span className="shrink-0 text-xs font-outfit-bold text-[#6f19d6]">Your Tickets:</span>
+          {userTickets.map((t) => (
+            <button
+              key={t.ticketId}
+              type="button"
+              onClick={() => setCurrentTicket(t)}
+              className={`shrink-0 rounded-xl px-3 py-1 text-xs font-outfit-bold border-2 transition ${
+                currentTicket?.ticketId === t.ticketId
+                  ? "border-[#18151d] bg-[#d8f23c] text-[#18151d] shadow-[1.5px_1.5px_0_#18151d]"
+                  : "border-[#e3d6ec] bg-white text-[#5b4d66] hover:bg-[#faf6ff]"
+              }`}
+            >
+              #{t.ticketId} • {t.cause.slice(0, 16)}...
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Ticket Details & Live Stages */}
       <section className="mx-auto flex w-full max-w-[760px] flex-col gap-[13px] px-[13px] pb-1">
         {/* Ticket Header Card */}
         <article className="flex h-[82px] items-center gap-[10px] rounded-2xl border-[1.5px] border-[#18151d] bg-[#fffbff] p-[10px] shadow-[3px_3px_0_#18151d]">
           <div className="relative flex h-[62px] w-[95px] shrink-0 items-end overflow-hidden rounded-[12px] border border-[#18151d]">
+            {stages[currentActiveIdx]?.photoUrl ? (
             <img
-              alt="Meals being prepared"
+              alt="Latest host update"
               className="absolute inset-0 h-full w-full object-cover"
-              src={stages[currentActiveIdx]?.photoUrl || ""}
+              src={stages[currentActiveIdx].photoUrl}
             />
-            <span className="relative flex h-[19px] w-full items-center justify-center bg-[#18151d] font-outfit-bold text-[9px] text-[#d8f23c]">
-              🍲 {currentTicket.mealCount} Meals
+            ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-[#f7f2fb] px-2 text-center text-[10px] text-[#6c6570]">
+              Waiting for host update
+            </div>
+            )}
+            <span className="relative flex h-[19px] w-full items-center justify-center bg-[#18151d] font-outfit-bold text-[9px] text-[#d8f23c] px-1 text-center truncate">
+              {currentTicket.category === "Nutrition" || currentTicket.unitName?.toLowerCase().includes("meal") ? "🍲" : currentTicket.category === "Clothes" ? "👕" : currentTicket.category === "Education" ? "📚" : "✨"} {currentTicket.unitCount || currentTicket.mealCount} {currentTicket.unitName ? (currentTicket.unitName + ((currentTicket.unitCount || currentTicket.mealCount) > 1 && !currentTicket.unitName.endsWith("s") ? "s" : "")) : "Units"}
             </span>
           </div>
 
@@ -325,26 +391,12 @@ export default function DonationTracker({
           })}
         </div>
 
-        {/* Live Simulation Control Button */}
-        <div className="px-3 pt-3">
-          <button
-            className="font-outfit-extrabold flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#18151d] bg-[#f5e8fc] py-3 text-sm text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:opacity-60"
-            disabled={isAdvancing || currentTicket?.status === "distributed"}
-            onClick={handleAdvanceStage}
-            type="button"
-          >
-            <span>⚡ Simulate Next Live On-Ground Update</span>
-          </button>
-        </div>
-
-        {statusNotice && (
-          <p
-            className="text-center font-outfit-bold text-xs text-[#6500a4]"
-            role="status"
-          >
-            {statusNotice}
+        {stages.length === 0 && (
+          <p className="px-3 pt-3 text-center text-xs text-[#6c6570]">
+            Your ticket is recorded. The tracker will update automatically when the host publishes live progress.
           </p>
         )}
+
       </section>
 
       {/* Live Geotagged Photo Proof Modal */}

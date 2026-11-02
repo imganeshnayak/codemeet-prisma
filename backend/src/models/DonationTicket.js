@@ -37,6 +37,10 @@ const stageSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    hostPublished: {
+      type: Boolean,
+      default: false,
+    },
   },
   { _id: false }
 );
@@ -64,10 +68,23 @@ const donationTicketSchema = new Schema(
       default: '',
       trim: true,
     },
+    campaignId: {
+      type: String,
+      default: '',
+      index: true,
+    },
     mealCount: {
       type: Number,
       required: true,
-      min: [1, 'Must purchase at least 1 feeding ticket'],
+      min: [1, 'Must purchase at least 1 ticket'],
+    },
+    unitName: {
+      type: String,
+      default: 'Meal',
+    },
+    category: {
+      type: String,
+      default: 'Nutrition',
     },
     amount: {
       type: Number,
@@ -108,18 +125,21 @@ donationTicketSchema.methods.toPublicJSON = function toPublicJSON() {
     ticketId: this.ticketId,
     donorName: this.donorName,
     donorEmail: this.donorEmail,
+    campaignId: this.campaignId,
     mealCount: this.mealCount,
+    unitCount: this.mealCount,
+    unitName: this.unitName || 'Meal',
+    category: this.category || 'Nutrition',
     amount: this.amount,
     cause: this.cause,
     location: this.location,
     beneficiaryGroup: this.beneficiaryGroup,
     dedication: this.dedication,
     status: this.status,
-    stages: this.stages,
+    stages: this.stages.filter((stage) => stage.hostPublished === true),
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };
 };
 
 module.exports = model('DonationTicket', donationTicketSchema);
-

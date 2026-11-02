@@ -111,6 +111,7 @@ type Task = {
   days: string
   image: string
   donation?: boolean
+  campaignId?: string
 }
 
 function Icon({
@@ -692,6 +693,7 @@ function TasksScreen({
   tasks: feedTasks,
   current,
   dislikedTaskTitles,
+  taskDisplayCounts,
   hiddenTaskIds,
   hiddenTaskCreatorId,
   onCurrentChange,
@@ -706,6 +708,7 @@ function TasksScreen({
 }: {
   current: number
   dislikedTaskTitles: string[]
+  taskDisplayCounts: Record<string, number>
   hiddenTaskIds: string[]
   hiddenTaskCreatorId?: string
   onCurrentChange: (index: number) => void
@@ -726,12 +729,16 @@ function TasksScreen({
   const swipeStart = useRef<{ x: number; y: number } | null>(null)
   const suppressClick = useRef(false)
   const noticeTimeout = useRef<number | null>(null)
-  const availableTasks = feedTasks.filter(
+  const visibleTasks = feedTasks.filter(
     (availableTask) =>
-      !dislikedTaskTitles.includes(availableTask.title) &&
+      (taskDisplayCounts[availableTask.id || availableTask.title] || 0) < 2 &&
       (!availableTask.eventId || !hiddenTaskIds.includes(availableTask.eventId)) &&
       (!hiddenTaskCreatorId || availableTask.creatorId !== hiddenTaskCreatorId),
   )
+  const freshTasks = visibleTasks.filter(
+    (availableTask) => !dislikedTaskTitles.includes(availableTask.title),
+  )
+  const availableTasks = freshTasks.length > 0 ? freshTasks : visibleTasks
   const task = availableTasks[current]
 
   function swipe(nextDirection: "left" | "right") {
@@ -1835,6 +1842,7 @@ function campaignToTask(c: ApiDonationCampaign): Task {
     image: c.image || "/assets/d7a6c.png",
     donation: true,
     eventId: c.id,
+    campaignId: c.campaignId,
   }
 }
 
@@ -1909,6 +1917,7 @@ export default function App() {
   const [currentTask, setCurrentTask] = useState(0)
   const [feedTasks, setFeedTasks] = useState<Task[]>([])
   const [dislikedTaskTitles, setDislikedTaskTitles] = useState<string[]>([])
+  const [taskDisplayCounts, setTaskDisplayCounts] = useState<Record<string, number>>({})
   const [events, setEvents] = useState<SevaEvent[]>([])
   const [selectedEventId, setSelectedEventId] = useState(() =>
     getEventPageFromHash()?.eventId || "organizing-tree-drive",
@@ -1928,6 +1937,7 @@ export default function App() {
     "home" | "tasks" | "my-events"
   >("tasks")
   const [activeTicket, setActiveTicket] = useState<ApiDonationTicket | null>(null)
+  const [selectedDonationCampaignId, setSelectedDonationCampaignId] = useState("")
   const [proofTask, setProofTask] = useState<Task | null>(null)
   const [proofArticleId, setProofArticleId] = useState<string | undefined>()
   const [arenaProgress, setArenaProgress] = useState<ApiArenaProgress>({
@@ -1941,7 +1951,7 @@ export default function App() {
   const [selectedCampaign, setSelectedCampaign] = useState<ApiDonationCampaign | null>(null)
   const [clashModal, setClashModal] = useState<ClashModalState>(null)
   const [donationOrigin, setDonationOrigin] = useState<
-    "swipe-donation" | "tasks"
+    "home" | "swipe-donation" | "tasks"
   >("tasks")
   const [profile, setProfile] = useState<ProfileData>({
     id: "",
@@ -2066,6 +2076,7 @@ export default function App() {
         uniqueTasks.set(task.id ?? `${task.title}-${task.date}`, task);
       }
       setFeedTasks([...uniqueTasks.values()]);
+      setCurrentTask(0);
     } catch (e) {
       console.error("Could not load community feed:", e);
     }
@@ -2074,6 +2085,12 @@ export default function App() {
   useEffect(() => {
     loadCommunityFeed();
   }, [loadCommunityFeed]);
+
+  useEffect(() => {
+    if (screen === "tasks") {
+      loadCommunityFeed()
+    }
+  }, [screen, loadCommunityFeed])
 
   useEffect(() => {
     if (!getStoredToken()) return
@@ -2109,6 +2126,7 @@ export default function App() {
     setProfile(toProfileData(user))
     setCurrentTask(0)
     setDislikedTaskTitles([])
+    setTaskDisplayCounts({})
     loadCommunityFeed()
     eventsApi.listMine().then(({ events: storedEvents }) => {
       setEvents((current) => {
@@ -2130,6 +2148,7 @@ export default function App() {
   function openTask(task: Task, destination: "event-volunteers" | "my-events" = "event-volunteers") {
     if (task.donation) {
       setDonationOrigin("tasks")
+      setSelectedDonationCampaignId(task.campaignId || task.eventId || "")
       setScreen("donate-feed")
       return
     }
@@ -2241,10 +2260,14 @@ export default function App() {
   if (screen === "donate-feed") {
     return (
       <FeedDonationScreen
-        onBack={() => setScreen(donationOrigin || "home")}
+        campaignId={selectedDonationCampaignId || undefined}
+        onBack={() => {
+          setActiveTicket(null)
+          setSelectedDonationCampaignId("")
+          navigateApp(donationOrigin === "donate-feed" ? "home" : donationOrigin)
+        }}
         onSuccess={(ticket) => {
           setActiveTicket(ticket)
-          setDonationOrigin("donate-feed")
           setScreen("donation-tracker")
         }}
       />
@@ -2252,7 +2275,12 @@ export default function App() {
   }
 
   if (screen === "donation-tracker") {
-    return <DonationTracker onBack={() => setScreen(donationOrigin || "home")} ticket={activeTicket} />
+    return (
+      <DonationTracker
+        onBack={() => setScreen(donationOrigin === "donate-feed" ? "home" : donationOrigin)}
+        ticket={activeTicket}
+      />
+    )
   }
 
   if (screen === "swipe-donation") {
@@ -2262,6 +2290,11 @@ export default function App() {
         onCreate={() => {
           setCreateOrigin("swipe-donation")
           setScreen("create-event")
+        }}
+        onDonate={() => {
+          setDonationOrigin("swipe-donation")
+          setSelectedDonationCampaignId("CAMP-CLOTH-101")
+          setScreen("donate-feed")
         }}
         onTrack={() => {
           setDonationOrigin("swipe-donation")
@@ -2678,12 +2711,18 @@ export default function App() {
         tasks={feedTasks}
         current={currentTask}
         dislikedTaskTitles={dislikedTaskTitles}
+        taskDisplayCounts={taskDisplayCounts}
         hiddenTaskIds={[]}
         hiddenTaskCreatorId={profile.id || undefined}
         onRefresh={loadCommunityFeed}
         onLogout={() => setScreen("login")}
         onCurrentChange={setCurrentTask}
         onDislike={(task) => {
+          const taskKey = task.id || task.title
+          setTaskDisplayCounts((current) => ({
+            ...current,
+            [taskKey]: (current[taskKey] || 0) + 1,
+          }))
           setDislikedTaskTitles((current) =>
             current.includes(task.title) ? current : [...current, task.title],
           )
@@ -2695,7 +2734,14 @@ export default function App() {
           setScreen("geo-proof")
         }}
         onOpenTask={openTask}
-        onLikeTask={handleTaskInterest}
+        onLikeTask={(task) => {
+          const taskKey = task.id || task.title
+          setTaskDisplayCounts((current) => ({
+            ...current,
+            [taskKey]: (current[taskKey] || 0) + 1,
+          }))
+          return handleTaskInterest(task)
+        }}
         onJoinTask={handleTaskInterest}
       />
       </>

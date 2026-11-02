@@ -48,10 +48,12 @@ export default function SwipeDonation({
   onBack,
   onCreate,
   onTrack,
+  onDonate,
 }: {
   onBack: () => void
   onCreate: () => void
   onTrack: () => void
+  onDonate?: () => void
 }) {
   return (
     <div className="bg-[#fffbff] content-stretch flex flex-col items-start relative min-h-dvh w-full" data-node-id="165:12399" data-name="Donate with a Swipe mobile">
@@ -406,8 +408,15 @@ export default function SwipeDonation({
               <img alt="" className="absolute block inset-0 max-w-none size-full" src={imgHand} />
             </div>
           </div>
-          <div className="content-stretch flex flex-col gap-[6px] items-center overflow-clip relative shrink-0" data-node-id="165:12493" data-name="Donate action">
-            <div className="bg-white border-[#c9addf] border-[0.8px] border-solid content-stretch flex items-center justify-center overflow-clip relative rounded-[100px] shrink-0 size-[69px]" data-node-id="165:12494" data-name="Donate button">
+          <div
+            className="content-stretch flex flex-col gap-[6px] items-center overflow-clip relative shrink-0 cursor-pointer"
+            data-node-id="165:12493"
+            data-name="Donate action"
+            onClick={onDonate || onTrack}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="bg-white border-[#c9addf] border-[0.8px] border-solid content-stretch flex items-center justify-center overflow-clip relative rounded-[100px] shrink-0 size-[69px] shadow-sm transition hover:scale-105 active:scale-95" data-node-id="165:12494" data-name="Donate button">
               <p className="[word-break:break-word] font-['Inter:Regular'] font-normal leading-none not-italic relative shrink-0 text-[#00d66b] text-[45px] whitespace-nowrap" data-node-id="165:12495">
                 ♥
               </p>

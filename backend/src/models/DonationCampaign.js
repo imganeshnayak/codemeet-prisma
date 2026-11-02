@@ -177,6 +177,7 @@ donationCampaignSchema.methods.toPublicJSON = function toPublicJSON() {
   return {
     id: this._id.toString(),
     campaignId: this.campaignId,
+    organizerId: this.organizerId ? this.organizerId.toString() : '',
     organizer: this.organizer,
     title: this.title,
     description: this.description,
@@ -201,4 +202,3 @@ donationCampaignSchema.methods.toPublicJSON = function toPublicJSON() {
 };
 
 module.exports = model('DonationCampaign', donationCampaignSchema);
-

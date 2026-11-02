@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { formatEventDate, SevaEvent } from "./events";
-import { ApiTaskSubmission, ApiVolunteer, eventsApi, rewardsApi } from "./api";
+import { ApiTaskSubmission, ApiVolunteer, eventsApi, reportsApi, rewardsApi } from "./api";
+import { generateEventReportHTML } from "./ReportGenerator";
 
 const assetPathPrefix = "/assets";
 const imgProfile = `${assetPathPrefix}/80e95.png`;
@@ -41,6 +42,71 @@ export default function EventVolunteers({ event, onBack, onAssignments, onPhotos
   const [volunteerLoading, setVolunteerLoading] = useState(false);
   const [volunteerError, setVolunteerError] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  async function handleGenerateReport() {
+    setIsGeneratingReport(true);
+    try {
+      const res = await reportsApi.getEventReport(event.id);
+      generateEventReportHTML(res.report);
+    } catch {
+      const approved = submissions.filter((s) => s.status === "approved").length;
+      const totalXp = submissions
+        .filter((s) => s.status === "approved")
+        .reduce((acc, s) => acc + (s.awardedXp || 0), 0);
+      const fallback = {
+        generatedAt: new Date().toISOString(),
+        generatedBy: event.organizer,
+        event: {
+          id: event.id,
+          title: event.title,
+          category: event.category,
+          date: event.date,
+          time: event.time,
+          location: event.location,
+          description: event.description,
+          status: event.status,
+          organizer: event.organizer,
+          capacity: event.capacity,
+          skills: event.skills,
+        },
+        volunteers: {
+          registered: volunteers.length,
+          capacity: event.capacity,
+          fillRate: event.capacity > 0 ? Math.round((volunteers.length / event.capacity) * 100) : 0,
+          list: volunteers.map((v) => ({
+            name: v.name,
+            assignment: v.assignment,
+            location: v.location,
+            joinedAt: v.joinedAt,
+          })),
+        },
+        tasks: {
+          total: submissions.length,
+          submissionsReceived: submissions.length,
+          approved,
+          pending: submissions.filter((s) => s.status === "submitted").length,
+          rejected: submissions.filter((s) => s.status === "rejected").length,
+          list: [],
+        },
+        proofSubmissions: submissions.map((s) => ({
+          volunteerName: s.volunteerName,
+          taskTitle: s.taskTitle || "—",
+          gps: s.proof?.coordinates || "—",
+          capturedAt: s.proof?.capturedAt || "—",
+          status: s.status,
+        })),
+        impact: {
+          totalXpAwarded: totalXp,
+          uniqueSkills: [event.category],
+          completionRate: submissions.length > 0 ? Math.round((approved / submissions.length) * 100) : 0,
+        },
+      };
+      generateEventReportHTML(fallback);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }
 
   useEffect(() => {
     if (!/^[a-f\d]{24}$/i.test(event.id)) return;
@@ -205,6 +271,17 @@ export default function EventVolunteers({ event, onBack, onAssignments, onPhotos
           </div>
         </div>
         <div className="content-stretch flex flex-col gap-[18px] items-start px-[3px] relative shrink-0 w-full" data-node-id="174:12013" data-name="Event management">
+          {!readOnly && (
+            <button
+              className="flex w-full items-center justify-center gap-2 rounded-[15px] border-2 border-[#18151d] bg-[#d8f23c] py-3.5 px-4 font-['Arimo:Bold'] text-[14px] text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+              disabled={isGeneratingReport}
+              onClick={handleGenerateReport}
+              type="button"
+            >
+              <span>📑</span>
+              <span>{isGeneratingReport ? "Compiling Event Report..." : "Generate Official Event Report (PDF)"}</span>
+            </button>
+          )}
           {readOnly && onCommunity && (
             <button
               className="flex w-full items-center justify-center gap-2 rounded-[15px] border border-[#d5c9e1] bg-[#933bc4] px-4 py-4 font-['Arimo:Bold'] text-[15px] text-white"

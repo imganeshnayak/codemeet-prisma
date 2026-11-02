@@ -25,6 +25,7 @@ function generateDefaultStages(ticketId, count, location, unitName = 'Meal') {
         avatar: 'AK',
       },
       completed: true,
+      hostPublished: true,
     },
     {
       stage: 'procured',
@@ -43,6 +44,7 @@ function generateDefaultStages(ticketId, count, location, unitName = 'Meal') {
         avatar: 'SR',
       },
       completed: false,
+      hostPublished: false,
     },
     {
       stage: 'prepared',
@@ -61,6 +63,7 @@ function generateDefaultStages(ticketId, count, location, unitName = 'Meal') {
         avatar: 'KH',
       },
       completed: false,
+      hostPublished: false,
     },
     {
       stage: 'distributed',
@@ -79,6 +82,7 @@ function generateDefaultStages(ticketId, count, location, unitName = 'Meal') {
         avatar: 'MP',
       },
       completed: false,
+      hostPublished: false,
     },
   ];
 }
@@ -227,9 +231,102 @@ const seedCampaigns = [
   },
 ];
 
+async function ensureSeedData() {
+  try {
+    const count = await DonationCampaign.countDocuments();
+    if (count === 0 && seedCampaigns.length > 0) {
+      await DonationCampaign.insertMany(seedCampaigns);
+      console.log('Seeded initial donation campaigns');
+    }
+
+    const ticketCount = await DonationTicket.countDocuments();
+    if (ticketCount === 0) {
+      const campaign =
+        (await DonationCampaign.findOne({ campaignId: 'CAMP-CLOTH-101' })) ||
+        (await DonationCampaign.findOne());
+      if (campaign) {
+        const ticketId = (campaign.category || 'DONA').toUpperCase().slice(0, 4) + '-8492';
+        await DonationTicket.create({
+          ticketId,
+          donorName: 'Aarav Sharma',
+          donorEmail: 'aarav@sevasathi.org',
+          campaignId: campaign.campaignId,
+          mealCount: 5,
+          unitName: campaign.donationItem || 'Kit',
+          category: campaign.category || 'Community',
+          amount: 5 * (campaign.unitCost || 50),
+          cause: campaign.title,
+          location: campaign.location,
+          beneficiaryGroup: campaign.beneficiaryGroup || 'Underprivileged Children & Elders',
+          dedication: 'In support of coastal families',
+          status: campaign.currentStage || 'procured',
+          stages:
+            campaign.stages && campaign.stages.length > 0
+              ? campaign.stages.map((st, idx) => ({
+                  stage: st.stage,
+                  title: st.title,
+                  description: st.description,
+                  timestamp: st.timestamp || new Date(),
+                  photoUrl: st.photoUrl || '',
+                  geoTag: st.geoTag || {
+                    location: campaign.location,
+                    coordinates: '12.8718° N, 74.8560° E',
+                    verified: true,
+                  },
+                  volunteer: st.volunteer || { name: 'Campaign Host', role: 'Host', avatar: 'CH' },
+                  completed: st.completed ?? (idx === 0),
+                  hostPublished: true,
+                }))
+              : generateDefaultStages(ticketId, 5, campaign.location, campaign.donationItem),
+        });
+        console.log('Seeded initial donation ticket');
+      }
+    }
+  } catch (err) {
+    console.error('ensureSeedData error:', err.message);
+  }
+}
+
+async function syncTicketWithCampaign(ticket) {
+  if (!ticket || !ticket.campaignId) return ticket;
+  try {
+    const campaign = await DonationCampaign.findOne({ campaignId: ticket.campaignId });
+    if (!campaign) return ticket;
+
+    if (campaign.stages && campaign.stages.length > 0) {
+      ticket.stages = campaign.stages.map((st) => ({
+        stage: st.stage,
+        title: st.title,
+        description: st.description,
+        timestamp: st.timestamp || new Date(),
+        photoUrl: st.photoUrl || '',
+        geoTag: st.geoTag || {
+          location: campaign.location,
+          coordinates: '12.8718° N, 74.8560° E',
+          verified: true,
+        },
+        volunteer: st.volunteer || { name: 'Campaign Host', role: 'Host', avatar: 'CH' },
+        completed: st.completed ?? false,
+        hostPublished: st.completed === true || st.stage === 'pledged',
+      }));
+      ticket.status = campaign.currentStage || ticket.status;
+      ticket.cause = campaign.title || ticket.cause;
+      ticket.location = campaign.location || ticket.location;
+      ticket.beneficiaryGroup = campaign.beneficiaryGroup || ticket.beneficiaryGroup;
+      ticket.unitName = campaign.donationItem || ticket.unitName;
+      ticket.category = campaign.category || ticket.category;
+      await ticket.save().catch(() => {});
+    }
+  } catch (err) {
+    console.error('syncTicketWithCampaign error:', err.message);
+  }
+  return ticket;
+}
+
 // GET /api/donations/campaigns - List persisted donation campaigns
 router.get('/campaigns', async (req, res, next) => {
   try {
+    await ensureSeedData();
     const campaigns = await DonationCampaign.find().sort({ createdAt: -1 });
     return res.json({ campaigns: campaigns.map((c) => c.toPublicJSON()) });
   } catch (error) {
@@ -386,6 +483,19 @@ router.post('/campaigns/:id/broadcast-stage', optionalAuth, async (req, res, nex
     });
 
     await campaign.save();
+    const ticketStages = campaign.stages.map((stage) => ({
+      ...stage.toObject(),
+      hostPublished: stage.completed === true,
+    }));
+    await DonationTicket.updateMany(
+      { campaignId: campaign.campaignId },
+      {
+        $set: {
+          stages: ticketStages,
+          status: targetStage,
+        },
+      },
+    );
     return res.json({ success: true, campaign: campaign.toPublicJSON() });
   } catch (error) {
     return next(error);
@@ -441,33 +551,81 @@ router.post('/ticket', optionalAuth, async (req, res, next) => {
       campaignId = '',
     } = req.body || {};
 
-    const count = Math.max(1, parseInt(unitCount || mealCount, 10) || 1);
-    const amount = count * 50; // default ₹50 or calculated
-    const ticketId = (unitName.toUpperCase().slice(0, 4) || 'FEED') + '-' + Math.floor(1000 + Math.random() * 9000);
+    let campaign = null;
+    if (campaignId) {
+      const trimmedId = String(campaignId).trim();
+      campaign = await DonationCampaign.findOne({
+        $or: [
+          { campaignId: trimmedId },
+          { _id: trimmedId.match(/^[0-9a-fA-F]{24}$/) ? trimmedId : null },
+        ],
+      });
+    }
 
-    const stages = generateDefaultStages(ticketId, count, location, unitName);
+    const count = Math.max(1, parseInt(unitCount || mealCount, 10) || 1);
+    const resolvedUnitName = campaign?.donationItem || unitName || 'Meal';
+    const resolvedUnitCost = campaign?.unitCost || (req.body?.amount ? Math.round(Number(req.body.amount) / count) : 50);
+    const resolvedAmount = req.body?.amount ? Number(req.body.amount) : count * resolvedUnitCost;
+    const resolvedCause = campaign?.title || cause;
+    const resolvedLocation = campaign?.location || location;
+    const resolvedBeneficiary = campaign?.beneficiaryGroup || beneficiaryGroup;
+    const resolvedCategory = campaign?.category || 'Nutrition';
+    const prefix = (campaign?.category || resolvedUnitName).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'DONA';
+    const ticketId = prefix + '-' + Math.floor(1000 + Math.random() * 9000);
+
+    let initialStages = [];
+    let initialStatus = 'pledged';
+
+    if (campaign && campaign.stages && campaign.stages.length > 0) {
+      initialStages = campaign.stages.map((st) => ({
+        stage: st.stage,
+        title: st.title,
+        description: st.description,
+        timestamp: st.timestamp || new Date(),
+        photoUrl: st.photoUrl || '',
+        geoTag: {
+          location: st.geoTag?.location || resolvedLocation,
+          coordinates: st.geoTag?.coordinates || '12.8718° N, 74.8560° E',
+          verified: st.geoTag?.verified ?? true,
+        },
+        volunteer: {
+          name: st.volunteer?.name || 'Campaign Host',
+          role: st.volunteer?.role || 'Host',
+          avatar: st.volunteer?.avatar || 'CH',
+        },
+        completed: st.completed ?? false,
+        hostPublished: st.completed === true || st.stage === 'pledged',
+      }));
+      initialStatus = campaign.currentStage || 'pledged';
+    } else {
+      initialStages = generateDefaultStages(ticketId, count, resolvedLocation, resolvedUnitName);
+      initialStatus = 'pledged';
+    }
 
     const ticket = await DonationTicket.create({
       ticketId,
       donorId: req.user?._id,
       donorName: req.user?.name || donorName.trim() || 'Generous Donor',
       donorEmail: req.user?.email || donorEmail.trim() || 'donor@sevasathi.org',
+      campaignId: campaign ? campaign.campaignId : (campaignId ? String(campaignId).trim() : ''),
       mealCount: count,
-      amount,
-      cause,
-      location,
-      beneficiaryGroup,
+      unitName: resolvedUnitName,
+      category: resolvedCategory,
+      amount: resolvedAmount,
+      cause: resolvedCause,
+      location: resolvedLocation,
+      beneficiaryGroup: resolvedBeneficiary,
       dedication: dedication.trim(),
-      status: 'pledged',
-      stages,
+      status: initialStatus,
+      stages: initialStages,
     });
 
-    if (campaignId) {
+    if (campaign) {
       await DonationCampaign.findOneAndUpdate(
-        { campaignId },
+        { campaignId: campaign.campaignId },
         {
-          $inc: { raisedUnits: count, raisedAmount: amount },
-          $push: { donors: { ticketId, donorName: ticket.donorName, units: count, amount, timestamp: new Date() } },
+          $inc: { raisedUnits: count, raisedAmount: resolvedAmount },
+          $push: { donors: { ticketId, donorName: ticket.donorName, units: count, amount: resolvedAmount, timestamp: new Date() } },
         }
       ).catch(() => {});
     }
@@ -496,10 +654,12 @@ router.get('/mine', requireAuth, async (req, res, next) => {
 // GET /api/donations/track/:ticketId - Track ticket with live proof
 router.get('/track/:ticketId', async (req, res, next) => {
   try {
-    const ticket = await DonationTicket.findOne({ ticketId: req.params.ticketId });
+    await ensureSeedData();
+    let ticket = await DonationTicket.findOne({ ticketId: req.params.ticketId });
     if (!ticket) {
       return res.status(404).json({ message: 'Ticket not found.' });
     }
+    ticket = await syncTicketWithCampaign(ticket);
     return res.json({ ticket: ticket.toPublicJSON() });
   } catch (error) {
     return next(error);
@@ -509,10 +669,12 @@ router.get('/track/:ticketId', async (req, res, next) => {
 // GET /api/donations/latest - Get the most recent persisted ticket
 router.get('/latest', async (req, res, next) => {
   try {
-    const ticket = await DonationTicket.findOne().sort({ createdAt: -1 });
+    await ensureSeedData();
+    let ticket = await DonationTicket.findOne().sort({ createdAt: -1 });
     if (!ticket) {
       return res.status(404).json({ message: 'No donation ticket found.' });
     }
+    ticket = await syncTicketWithCampaign(ticket);
     return res.json({ ticket: ticket.toPublicJSON() });
   } catch (error) {
     return next(error);

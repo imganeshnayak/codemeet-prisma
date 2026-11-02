@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import { ApiDonationCampaign, donationsApi } from "./api"
+import { ApiDonationCampaign, donationsApi, reportsApi } from "./api"
+import { generateCampaignReportHTML } from "./ReportGenerator"
 
 const categoryBadges: Record<
   ApiDonationCampaign["category"],
@@ -35,6 +36,7 @@ export default function DonationCampaignAdmin({
   const [isGettingGps, setIsGettingGps] = useState(false)
   const [isBroadcasting, setIsBroadcasting] = useState(false)
   const [notice, setNotice] = useState("")
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
 
   // Add expense form state
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -198,6 +200,82 @@ export default function DonationCampaignAdmin({
   function showMessage(msg: string) {
     setNotice(msg)
     setTimeout(() => setNotice(""), 3500)
+  }
+
+  async function handleGenerateReport() {
+    setIsGeneratingReport(true)
+    try {
+      const id = campaign.id || campaign.campaignId
+      const res = await reportsApi.getCampaignReport(id)
+      generateCampaignReportHTML(res.report)
+    } catch {
+      // Fallback: build report from current campaign state
+      const fallback = {
+        generatedAt: new Date().toISOString(),
+        campaign: {
+          title: campaign.title,
+          category: campaign.category,
+          campaignId: campaign.campaignId,
+          organizer: campaign.organizer,
+          location: campaign.location,
+          status: campaign.status,
+          currentStage: campaign.currentStage,
+          description: campaign.description,
+          beneficiaryGroup: campaign.beneficiaryGroup || "—",
+        },
+        financial: {
+          targetAmount: campaign.targetAmount,
+          raisedAmount: campaign.raisedAmount,
+          targetUnits: campaign.targetUnits,
+          raisedUnits: campaign.raisedUnits,
+          unitCost: campaign.unitCost,
+          donationItem: campaign.donationItem,
+          fundingProgress: Math.round((campaign.raisedUnits / (campaign.targetUnits || 1)) * 100),
+        },
+        donors: {
+          total: campaign.donors.length,
+          list: campaign.donors.map((d) => ({
+            donorName: d.donorName,
+            units: d.units,
+            amount: d.amount,
+            ticketId: d.ticketId,
+            timestamp: d.timestamp,
+          })),
+        },
+        expenses: {
+          totalSpent: campaign.expenses.reduce((acc, e) => acc + e.amount, 0),
+          budgetUtilization: campaign.targetAmount > 0
+            ? Math.round((campaign.expenses.reduce((acc, e) => acc + e.amount, 0) / campaign.targetAmount) * 100)
+            : 0,
+          list: campaign.expenses.map((e) => ({
+            item: e.item,
+            vendor: e.vendor,
+            amount: e.amount,
+            date: e.date,
+          })),
+        },
+        stages: campaign.stages.map((s) => ({
+          stage: s.stage,
+          title: s.title,
+          status: s.completed ? "Completed" : "Pending",
+          gps: s.geoTag?.coordinates || "—",
+          location: s.geoTag?.location || "—",
+          date: s.timestamp,
+          photoUrl: s.photoUrl,
+          notes: s.description,
+        })),
+        impact: {
+          unitsDistributed: campaign.raisedUnits,
+          targetUnits: campaign.targetUnits,
+          netRaised: campaign.raisedAmount,
+          totalSpent: campaign.expenses.reduce((acc, e) => acc + e.amount, 0),
+          beneficiariesTargeted: campaign.beneficiaryGroup || "—",
+        },
+      }
+      generateCampaignReportHTML(fallback)
+    } finally {
+      setIsGeneratingReport(false)
+    }
   }
 
   function handleCaptureGps() {
@@ -405,6 +483,21 @@ export default function DonationCampaignAdmin({
               <span>Raised: ₹{campaign.raisedAmount.toLocaleString()}</span>
               <span>Target: ₹{campaign.targetAmount.toLocaleString()} (@ ₹{campaign.unitCost}/unit)</span>
             </div>
+          </div>
+
+          {/* Transparency Report Generator */}
+          <div className="mt-4 border-t-2 border-[#18151d] pt-3">
+            <button
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] py-2.5 px-4 font-outfit-extrabold text-xs text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+              disabled={isGeneratingReport}
+              onClick={handleGenerateReport}
+              type="button"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>{isGeneratingReport ? "Compiling Report..." : "Generate Official Transparency Report (PDF)"}</span>
+            </button>
           </div>
         </section>
 

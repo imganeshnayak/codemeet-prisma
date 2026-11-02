@@ -475,6 +475,7 @@ export type ApiDonationStage = {
 export type ApiDonationCampaign = {
   id: string
   campaignId: string
+  organizerId?: string
   organizer: string
   title: string
   description: string
@@ -523,11 +524,15 @@ export type ApiDonationTicket = {
   donorName: string
   donorEmail: string
   mealCount: number
+  unitCount?: number
+  unitName?: string
+  category?: string
   amount: number
   cause: string
   location: string
   beneficiaryGroup: string
   dedication?: string
+  campaignId?: string
   status: "pledged" | "procured" | "prepared" | "distributed"
   stages: ApiDonationStage[]
   createdAt: string
@@ -536,12 +541,16 @@ export type ApiDonationTicket = {
 
 export const donationsApi = {
   purchaseTicket: (input: {
-    mealCount: number
+    mealCount?: number
+    unitCount?: number
+    unitName?: string
+    amount?: number
     cause?: string
     location?: string
     dedication?: string
     donorName?: string
     donorEmail?: string
+    campaignId?: string
   }) =>
     request<{ success: boolean; ticket: ApiDonationTicket }>("/donations/ticket", {
       method: "POST",
@@ -596,4 +605,17 @@ export const donationsApi = {
     request<{ success: boolean; ticket: ApiDonationTicket }>(`/donations/${ticketId}/advance`, {
       method: "POST",
     }),
+}
+
+// ─── Reports API ─────────────────────────────────────────────────────────────
+
+export const reportsApi = {
+  getEventReport: (eventId: string) =>
+    request<{ report: import("./ReportGenerator").EventReportData }>(
+      `/reports/event/${encodeURIComponent(eventId)}`
+    ),
+  getCampaignReport: (campaignId: string) =>
+    request<{ report: import("./ReportGenerator").CampaignReportData }>(
+      `/reports/campaign/${encodeURIComponent(campaignId)}`
+    ),
 }

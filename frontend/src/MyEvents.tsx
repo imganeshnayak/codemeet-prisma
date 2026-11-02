@@ -382,12 +382,14 @@ export default function MyEvents({
   const visibleEvents = roleEvents
 
   const userCampaigns = campaigns.filter((c) => {
-    if (!profile?.name) return true
-    const matchName = c.organizer?.trim().toLowerCase() === profile.name.trim().toLowerCase()
+    if (!profile?.id && !profile?.name) return false
+    const matchName =
+      Boolean(profile.name) &&
+      c.organizer?.trim().toLowerCase() === profile.name?.trim().toLowerCase()
     const matchId = profile.id && c.organizerId === profile.id
     return matchName || matchId
   })
-  const visibleCampaigns = userCampaigns.length > 0 ? userCampaigns : campaigns
+  const visibleCampaigns = userCampaigns
 
   useEffect(() => {
     if (role !== "organizing") return
@@ -397,7 +399,7 @@ export default function MyEvents({
       .then(({ campaigns: next }) => setCampaigns(next))
       .catch(() => setCampaigns([]))
       .finally(() => setLoadingCampaigns(false))
-  }, [role])
+  }, [role, profile?.id, profile?.name])
 
   useEffect(() => {
     if (!selectedArticle) {
