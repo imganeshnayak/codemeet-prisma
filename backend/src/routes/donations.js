@@ -1,7 +1,7 @@
 const express = require('express');
 const DonationTicket = require('../models/DonationTicket');
 const DonationCampaign = require('../models/DonationCampaign');
-const { optionalAuth } = require('../middleware/auth');
+const { optionalAuth, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -227,13 +227,9 @@ const seedCampaigns = [
   },
 ];
 
-// GET /api/donations/campaigns - List all donation campaigns (auto-seed if empty)
+// GET /api/donations/campaigns - List persisted donation campaigns
 router.get('/campaigns', async (req, res, next) => {
   try {
-    let count = await DonationCampaign.countDocuments();
-    if (count === 0) {
-      await DonationCampaign.insertMany(seedCampaigns);
-    }
     const campaigns = await DonationCampaign.find().sort({ createdAt: -1 });
     return res.json({ campaigns: campaigns.map((c) => c.toPublicJSON()) });
   } catch (error) {
@@ -485,6 +481,18 @@ router.post('/ticket', optionalAuth, async (req, res, next) => {
   }
 });
 
+// GET /api/donations/mine - List tickets donated by the authenticated user
+router.get('/mine', requireAuth, async (req, res, next) => {
+  try {
+    const tickets = await DonationTicket.find({ donorId: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    return res.json({ tickets: tickets.map((ticket) => ticket.toPublicJSON()) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 // GET /api/donations/track/:ticketId - Track ticket with live proof
 router.get('/track/:ticketId', async (req, res, next) => {
   try {
@@ -498,28 +506,12 @@ router.get('/track/:ticketId', async (req, res, next) => {
   }
 });
 
-// GET /api/donations/latest - Get the most recent ticket or seed one if empty
+// GET /api/donations/latest - Get the most recent persisted ticket
 router.get('/latest', async (req, res, next) => {
   try {
-    let ticket = await DonationTicket.findOne().sort({ createdAt: -1 });
+    const ticket = await DonationTicket.findOne().sort({ createdAt: -1 });
     if (!ticket) {
-      const ticketId = 'FEED-8842';
-      const stages = generateDefaultStages(ticketId, 5, 'Kadri Hills, Mangaluru', 'Meal');
-      stages[0].completed = true;
-      stages[1].completed = true;
-
-      ticket = await DonationTicket.create({
-        ticketId,
-        donorName: 'Aarav Sharma',
-        donorEmail: 'aarav@sevasathi.org',
-        mealCount: 5,
-        amount: 250,
-        cause: 'Children Nutrition Drive',
-        location: 'Kadri Hills, Mangaluru',
-        beneficiaryGroup: 'Underprivileged Children & Elders',
-        status: 'procured',
-        stages,
-      });
+      return res.status(404).json({ message: 'No donation ticket found.' });
     }
     return res.json({ ticket: ticket.toPublicJSON() });
   } catch (error) {

@@ -25,10 +25,37 @@ export default function GeoTagProof({
   const [submitError, setSubmitError] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [hasConsent, setHasConsent] = useState(() => {
+    try {
+      return window.localStorage.getItem("sevasathi_camera_consent") === "granted"
+    } catch {
+      return false
+    }
+  })
+  const [showConsentModal, setShowConsentModal] = useState(() => {
+    try {
+      return window.localStorage.getItem("sevasathi_camera_consent") !== "granted"
+    } catch {
+      return false
+    }
+  })
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function grantConsent() {
+    try {
+      window.localStorage.setItem("sevasathi_camera_consent", "granted")
+    } catch {}
+    setHasConsent(true)
+    setShowConsentModal(false)
+  }
+
+  function denyConsent() {
+    setShowConsentModal(false)
+    setCameraError("Camera permission was skipped. You can upload a photo from your device below.")
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -62,7 +89,9 @@ export default function GeoTagProof({
       }
     }
 
-    startCamera()
+    if (hasConsent) {
+      startCamera()
+    }
     navigator.geolocation?.getCurrentPosition(
       ({ coords }) => {
         setLocation({
@@ -84,7 +113,7 @@ export default function GeoTagProof({
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
-  }, [])
+  }, [hasConsent])
 
   function capturePhoto() {
     const video = videoRef.current
@@ -391,6 +420,76 @@ export default function GeoTagProof({
           </div>
         )}
       </section>
+
+      {/* User Consent Dialog for Android & Web Camera Access */}
+      {showConsentModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="relative w-full max-w-[420px] rounded-3xl border-3 border-[#18151d] bg-white p-6 shadow-[6px_7px_0_#18151d]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] text-2xl shadow-[2px_2px_0_#18151d]">
+                📸
+              </div>
+              <div>
+                <span className="font-outfit-bold text-[11px] uppercase tracking-wider text-[#6f19d6]">
+                  Android Camera Permission
+                </span>
+                <h3 className="font-outfit-extrabold text-xl leading-tight text-[#18151d]">
+                  Allow Camera Access?
+                </h3>
+              </div>
+            </div>
+
+            <p className="font-outfit-regular mt-4 text-xs leading-relaxed text-[#625c68]">
+              To capture field-verified proofs for volunteer tasks and donation verification, SevaSathi needs your consent to access your device camera and location.
+            </p>
+
+            <div className="mt-4 space-y-2.5 rounded-2xl border-2 border-[#18151d] bg-[#faf6ff] p-3.5 text-xs">
+              <div className="flex items-start gap-2.5">
+                <span className="text-base">📷</span>
+                <div>
+                  <strong className="block text-[#18151d]">Live Photo Capture</strong>
+                  <span className="text-[#6e6378]">Captures volunteer work on-ground for task completion.</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-base">📍</span>
+                <div>
+                  <strong className="block text-[#18151d]">GPS & Time Stamping</strong>
+                  <span className="text-[#6e6378]">Attaches verified coordinates and time so organizers can approve points.</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-base">🔒</span>
+                <div>
+                  <strong className="block text-[#18151d]">Your Privacy Protected</strong>
+                  <span className="text-[#6e6378]">Camera is only active when capturing proof. You can also upload a photo from your files anytime.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={denyConsent}
+                className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-white text-xs text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:bg-[#faf6ff]"
+              >
+                Not Now
+              </button>
+              <button
+                type="button"
+                onClick={grantConsent}
+                className="font-outfit-black h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] text-xs font-bold text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:bg-[#cbf018] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+              >
+                Allow & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="geo-proof-botanical" aria-hidden="true">
         <img className="geo-proof-wave" src={asset("a8c94.svg")} />

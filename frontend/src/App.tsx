@@ -901,13 +901,18 @@ function ProfileScreen({
   onEdit,
   onLogout,
   onNavigate,
+  onTrackDonation,
 }: {
   profile: ProfileData
   onEdit: () => void
   onLogout: () => void
   onNavigate: (screen: AppScreen) => void
+  onTrackDonation: (ticket: ApiDonationTicket) => void
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [donatedTickets, setDonatedTickets] = useState<ApiDonationTicket[]>([])
+  const [donationsLoading, setDonationsLoading] = useState(true)
+  const [donationsError, setDonationsError] = useState("")
   const impactBars = [
     "h-[42px]",
     "h-[68px]",
@@ -917,6 +922,29 @@ function ProfileScreen({
     "h-[94px]",
     "h-[76px]",
   ]
+
+  useEffect(() => {
+    let active = true
+    donationsApi
+      .listMine()
+      .then(({ tickets }) => {
+        if (active) setDonatedTickets(tickets)
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setDonationsError(
+            error instanceof Error ? error.message : "Could not load donated tickets.",
+          )
+        }
+      })
+      .finally(() => {
+        if (active) setDonationsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <main className="profile-page min-h-dvh pb-[112px] text-[#18151d]">
@@ -1007,6 +1035,66 @@ function ProfileScreen({
             </div>
           ))}
         </div>
+
+        <section className="profile-panel mt-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-outfit-semibold text-sm uppercase tracking-[0.14em] text-[#7c28df]">
+                Your giving
+              </p>
+              <h2 className="font-outfit-extrabold mt-1 text-[27px]">
+                Donated tickets
+              </h2>
+            </div>
+            <Icon className="h-7 w-7 text-[#7c28df]" name="heart" />
+          </div>
+
+          {donationsLoading && (
+            <p className="mt-4 rounded-xl bg-[#f7f2fb] p-4 text-sm text-[#6c6570]">
+              Loading your donated tickets...
+            </p>
+          )}
+          {!donationsLoading && donationsError && (
+            <p className="mt-4 rounded-xl bg-[#fff0f3] p-4 text-sm text-[#b4233c]" role="alert">
+              {donationsError}
+            </p>
+          )}
+          {!donationsLoading && !donationsError && donatedTickets.length === 0 && (
+            <p className="mt-4 rounded-xl bg-[#f7f2fb] p-4 text-sm text-[#6c6570]">
+              Your donated tickets will appear here after you make a donation.
+            </p>
+          )}
+          {!donationsLoading && !donationsError && donatedTickets.length > 0 && (
+            <div className="mt-4 grid gap-3">
+              {donatedTickets.map((ticket) => (
+                <article
+                  className="flex flex-col gap-3 rounded-2xl border-2 border-[#18151d] bg-[#fffbff] p-4 shadow-[2px_3px_0_#18151d] sm:flex-row sm:items-center sm:justify-between"
+                  key={ticket.id}
+                >
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs font-extrabold text-[#7e1bd9]">
+                      #{ticket.ticketId}
+                    </p>
+                    <h3 className="font-outfit-extrabold mt-1 truncate text-base">
+                      {ticket.cause}
+                    </h3>
+                    <p className="mt-1 text-xs text-[#6c6570]">
+                      {ticket.mealCount} meals · ₹{ticket.amount} ·{" "}
+                      {new Date(ticket.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    className="shrink-0 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-4 py-2 text-sm font-bold text-[#18151d] shadow-[2px_2px_0_#18151d]"
+                    onClick={() => onTrackDonation(ticket)}
+                    type="button"
+                  >
+                    Open tracker
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         <div className="mt-6 grid gap-6 md:grid-cols-[1.15fr_0.85fr]">
           <section className="profile-panel">
@@ -1736,16 +1824,38 @@ function campaignToTask(c: ApiDonationCampaign): Task {
     category: `${c.category} Drive`,
     title: c.title,
     location: c.location,
-    description: c.description || `Sponsor ${c.item} for ${c.beneficiary}`,
+    description:
+      c.description ||
+      `Sponsor ${c.donationItem} for ${c.beneficiaryGroup}`,
     date: "Live Campaign",
     time: `₹${c.unitCost} / unit`,
-    volunteers: `${c.unitsSponsored}/${c.targetUnits}`,
+    volunteers: `${c.raisedUnits}/${c.targetUnits}`,
     points: "100",
     days: "Donate & Track",
     image: c.image || "/assets/d7a6c.png",
     donation: true,
     eventId: c.id,
   }
+}
+
+function EventUnavailable({ onBack }: { onBack: () => void }) {
+  return (
+    <main className="flex min-h-dvh items-center justify-center bg-[#f7efff] p-5 text-center">
+      <section className="rounded-2xl border-2 border-[#18151d] bg-white p-6 shadow-[3px_4px_0_#18151d]">
+        <h1 className="font-outfit-extrabold text-xl">Event unavailable</h1>
+        <p className="mt-2 text-sm text-[#756c7b]">
+          Select an event from My Events before opening this page.
+        </p>
+        <button
+          className="mt-5 rounded-xl bg-[#18151d] px-4 py-2 text-sm font-bold text-white"
+          onClick={onBack}
+          type="button"
+        >
+          Back to My Events
+        </button>
+      </section>
+    </main>
+  )
 }
 
 function ProofGallery({ eventTitle, eventId, onBack }: { eventTitle: string; eventId?: string; onBack: () => void }) {
@@ -1912,9 +2022,10 @@ export default function App() {
   const loadCommunityFeed = useCallback(async () => {
     if (!profile.id) return
     try {
-      const [allEventsRes, tasksFeedRes] = await Promise.allSettled([
+      const [allEventsRes, tasksFeedRes, campaignsRes] = await Promise.allSettled([
         eventsApi.listAll(),
         tasksApi.listFeed(),
+        donationsApi.listCampaigns(),
       ]);
       const fetchedTasks: Task[] = [];
 
@@ -1940,6 +2051,14 @@ export default function App() {
         }
       } else if (tasksFeedRes.status === "rejected") {
         console.error("Could not load authenticated task feed:", tasksFeedRes.reason)
+      }
+
+      if (campaignsRes.status === "fulfilled" && campaignsRes.value?.campaigns) {
+        for (const campaign of campaignsRes.value.campaigns) {
+          fetchedTasks.push(campaignToTask(campaign));
+        }
+      } else if (campaignsRes.status === "rejected") {
+        console.error("Could not load donation campaigns:", campaignsRes.reason)
       }
 
       const uniqueTasks = new Map<string, Task>();
@@ -2341,7 +2460,8 @@ export default function App() {
   if (screen === "event-volunteers") {
     const selectedEvent =
       events.find((event) => event.id === selectedEventId) ??
-      events.find((event) => event.role === "organizing")!
+      events.find((event) => event.role === "organizing")
+    if (!selectedEvent) return <EventUnavailable onBack={() => setScreen(eventVolunteersOrigin)} />
     return (
       <EventVolunteers
         event={selectedEvent}
@@ -2361,7 +2481,8 @@ export default function App() {
   if (screen === "accepted-volunteers") {
     const selectedEvent =
       events.find((event) => event.id === selectedEventId) ??
-      events.find((event) => event.role === "organizing")!
+      events.find((event) => event.role === "organizing")
+    if (!selectedEvent) return <EventUnavailable onBack={() => setScreen("my-events")} />
     return (
       <AcceptedVolunteers
         event={selectedEvent}
@@ -2373,7 +2494,8 @@ export default function App() {
   if (screen === "event-community") {
     const selectedEvent =
       events.find((event) => event.id === selectedEventId) ??
-      events.find((event) => event.role === "organizing")!
+      events.find((event) => event.role === "organizing")
+    if (!selectedEvent) return <EventUnavailable onBack={() => setScreen("my-events")} />
     return (
       <EventCommunity
         event={selectedEvent}
@@ -2390,7 +2512,8 @@ export default function App() {
   if (screen === "task-assignments") {
     const selectedEvent =
       events.find((event) => event.id === selectedEventId) ??
-      events.find((event) => event.role === "organizing")!
+      events.find((event) => event.role === "organizing")
+    if (!selectedEvent) return <EventUnavailable onBack={() => setScreen(taskAssignmentsOrigin)} />
     if (selectedEvent.role !== "organizing") {
       return (
         <EventVolunteers
@@ -2467,6 +2590,11 @@ export default function App() {
 
       <MyEvents
         events={events}
+        profile={profile}
+        onManageCampaign={(campaign) => {
+          setSelectedCampaign(campaign)
+          setScreen("donation-campaign-admin")
+        }}
         onCreate={() => {
           setCreateOrigin("my-events")
           setScreen("create-event")
@@ -2580,6 +2708,11 @@ export default function App() {
         onEdit={() => setScreen("edit-profile")}
         onLogout={handleLogout}
         onNavigate={navigateApp}
+        onTrackDonation={(ticket) => {
+          setActiveTicket(ticket)
+          setDonationOrigin("home")
+          setScreen("donation-tracker")
+        }}
         profile={profile}
       />
     )

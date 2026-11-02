@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ApiDonationCampaign, donationsApi } from "./api"
 
 const categoryBadges: Record<
@@ -41,6 +41,159 @@ export default function DonationCampaignAdmin({
   const [expenseItem, setExpenseItem] = useState("")
   const [expenseAmount, setExpenseAmount] = useState("")
   const [expenseVendor, setExpenseVendor] = useState("")
+
+  // Live Camera states
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment")
+  const [cameraError, setCameraError] = useState("")
+  const [capturedTimestamp, setCapturedTimestamp] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop())
+        streamRef.current = null
+      }
+    }
+  }, [])
+
+  async function startCamera(facing: "environment" | "user" = cameraFacing) {
+    setCameraError("")
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Live camera access is not supported by your browser. Please use device camera upload.")
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+    } catch (err) {
+      console.error(err)
+      setCameraError("Camera permission denied or camera in use. You can also upload a photo directly.")
+    }
+  }
+
+  function stopCamera() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    setIsCameraOpen(false)
+  }
+
+  function handleOpenLiveCamera() {
+    setIsCameraOpen(true)
+    setTimeout(() => {
+      startCamera(cameraFacing)
+    }, 100)
+    handleCaptureGps()
+  }
+
+  function handleFlipCamera() {
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment"
+    setCameraFacing(nextFacing)
+    startCamera(nextFacing)
+  }
+
+  function handleCaptureLivePhoto() {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || video.videoWidth === 0) {
+      showMessage("Camera not ready yet.")
+      return
+    }
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext("2d")
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.88)
+      setDispatchPhoto(dataUrl)
+      const timeStr = new Intl.DateTimeFormat("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date())
+      setCapturedTimestamp(timeStr)
+      showMessage(`📸 Live proof photo captured at ${timeStr}!`)
+    }
+    stopCamera()
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setDispatchPhoto(reader.result)
+        const timeStr = new Intl.DateTimeFormat("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date())
+        setCapturedTimestamp(timeStr)
+        showMessage(`Proof photo loaded!`)
+        handleCaptureGps()
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Android & Web Camera Permission Consent States & Handlers
+  const [showConsentModal, setShowConsentModal] = useState(false)
+  const [pendingAction, setPendingAction] = useState<"camera" | "upload" | null>(null)
+
+  function handleCameraClickWithConsent() {
+    const hasConsent = window.localStorage.getItem("sevasathi_camera_consent") === "granted"
+    if (hasConsent) {
+      handleOpenLiveCamera()
+    } else {
+      setPendingAction("camera")
+      setShowConsentModal(true)
+    }
+  }
+
+  function handleUploadClickWithConsent() {
+    const hasConsent = window.localStorage.getItem("sevasathi_camera_consent") === "granted"
+    if (hasConsent) {
+      fileInputRef.current?.click()
+    } else {
+      setPendingAction("upload")
+      setShowConsentModal(true)
+    }
+  }
+
+  function handleGrantConsent() {
+    try {
+      window.localStorage.setItem("sevasathi_camera_consent", "granted")
+    } catch {}
+    setShowConsentModal(false)
+    if (pendingAction === "camera") {
+      handleOpenLiveCamera()
+    } else if (pendingAction === "upload") {
+      fileInputRef.current?.click()
+    }
+    setPendingAction(null)
+  }
+
+  function handleDenyConsent() {
+    setShowConsentModal(false)
+    setPendingAction(null)
+    showMessage("Camera access cancelled.")
+  }
 
   function showMessage(msg: string) {
     setNotice(msg)
@@ -357,22 +510,141 @@ export default function DonationCampaignAdmin({
                   </div>
                 </div>
 
-                {/* Proof Photo URL / Input */}
+                {/* Live On-Ground Photo Proof Capture */}
                 <div>
-                  <label className="font-outfit-bold text-xs text-[#18151d]">
-                    2. Live On-Ground Photo Proof:
-                  </label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-xl border-2 border-[#18151d]">
-                      <img alt="" className="h-full w-full object-cover" src={dispatchPhoto} />
-                    </div>
-                    <input
-                      className="flex-1 rounded-xl border-2 border-[#18151d] bg-[#faf6ff] px-3.5 py-2 text-xs font-outfit-semibold text-[#18151d] outline-none"
-                      onChange={(e) => setDispatchPhoto(e.target.value)}
-                      placeholder="Photo URL or asset path"
-                      value={dispatchPhoto}
-                    />
+                  <div className="flex items-center justify-between">
+                    <label className="font-outfit-bold text-xs text-[#18151d]">
+                      2. Live On-Ground Photo Proof:
+                    </label>
+                    {capturedTimestamp && (
+                      <span className="text-[11px] font-bold text-[#6f19d6]">
+                        🕒 Captured {capturedTimestamp}
+                      </span>
+                    )}
                   </div>
+
+                  {/* Hidden file input supporting native mobile camera capture */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleFileInputChange}
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+
+                  {/* Live Camera Viewfinder Modal / Section */}
+                  {isCameraOpen ? (
+                    <div className="mt-2 overflow-hidden rounded-2xl border-2 border-[#18151d] bg-[#18151d] shadow-[3px_4px_0_#18151d]">
+                      <div className="relative aspect-4/3 w-full bg-black flex items-center justify-center overflow-hidden">
+                        <video
+                          ref={videoRef}
+                          playsInline
+                          autoPlay
+                          muted
+                          className="h-full w-full object-cover"
+                        />
+
+                        {/* Viewfinder Target Overlay */}
+                        <div className="pointer-events-none absolute inset-5 rounded-xl border border-dashed border-white/60 flex items-center justify-center">
+                          <div className="h-4 w-4 border-t-2 border-l-2 border-[#d8f23c] absolute top-2 left-2" />
+                          <div className="h-4 w-4 border-t-2 border-r-2 border-[#d8f23c] absolute top-2 right-2" />
+                          <div className="h-4 w-4 border-b-2 border-l-2 border-[#d8f23c] absolute bottom-2 left-2" />
+                          <div className="h-4 w-4 border-b-2 border-r-2 border-[#d8f23c] absolute bottom-2 right-2" />
+                          <span className="rounded-md bg-black/70 px-2 py-0.5 font-mono text-[10px] text-white">
+                            📍 {dispatchGps}
+                          </span>
+                        </div>
+
+                        {cameraError && (
+                          <div className="absolute inset-3 flex flex-col items-center justify-center rounded-xl bg-black/90 p-4 text-center">
+                            <p className="text-xs font-bold text-[#ff6b81]">{cameraError}</p>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="mt-3 rounded-lg bg-[#d8f23c] px-3 py-1.5 text-xs font-bold text-[#18151d]"
+                            >
+                              Use Phone Camera / File
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Camera Controls Bar */}
+                      <div className="flex items-center justify-between bg-[#221c2b] p-3">
+                        <button
+                          type="button"
+                          onClick={handleFlipCamera}
+                          className="flex items-center gap-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+                        >
+                          🔄 Flip
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleCaptureLivePhoto}
+                          className="flex items-center gap-2 rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] px-5 py-2.5 font-outfit-black text-xs font-bold text-[#18151d] shadow-[2px_2px_0_#ffffff] transition hover:scale-105 active:scale-95"
+                        >
+                          <span className="text-base">📸</span>
+                          <span>Capture Photo</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/80 transition hover:bg-white/20"
+                        >
+                          ✕ Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Current Photo Preview & Capture Buttons */
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-start gap-3 rounded-2xl border-2 border-[#18151d] bg-[#faf6ff] p-3">
+                        <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border-2 border-[#18151d] bg-black shadow-[2px_2px_0_#18151d]">
+                          <img
+                            alt="Current Proof"
+                            className="h-full w-full object-cover"
+                            src={dispatchPhoto}
+                          />
+                          <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-bold text-white">
+                            Preview
+                          </span>
+                        </div>
+
+                        <div className="flex flex-1 flex-col justify-between self-stretch">
+                          <p className="text-xs font-bold text-[#18151d]">
+                            Broadcast Proof Image
+                          </p>
+                          <p className="line-clamp-2 text-[11px] text-[#6e6378]">
+                            Geotagged & verified live proof sent to donor passes.
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={handleCameraClickWithConsent}
+                              className="font-outfit-bold flex items-center gap-1.5 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-3 py-1.5 text-xs text-[#18151d] shadow-[1.5px_1.5px_0_#18151d] transition hover:-translate-y-0.5"
+                            >
+                              <span>📷</span>
+                              <span>Live Camera</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleUploadClickWithConsent}
+                              className="font-outfit-bold flex items-center gap-1.5 rounded-xl border-2 border-[#18151d] bg-white px-3 py-1.5 text-xs text-[#18151d] shadow-[1.5px_1.5px_0_#18151d] transition hover:bg-[#f3e8ff]"
+                            >
+                              <span>📁</span>
+                              <span>Upload / Snap</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Notes for donors */}
@@ -657,6 +929,76 @@ export default function DonationCampaignAdmin({
                   Save Entry
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Consent Dialog for Android & Web Camera Access */}
+      {showConsentModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="relative w-full max-w-[420px] rounded-3xl border-3 border-[#18151d] bg-white p-6 shadow-[6px_7px_0_#18151d]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-[#18151d] bg-[#d8f23c] text-2xl shadow-[2px_2px_0_#18151d]">
+                📸
+              </div>
+              <div>
+                <span className="font-outfit-bold text-[11px] uppercase tracking-wider text-[#6f19d6]">
+                  Android Camera Permission
+                </span>
+                <h3 className="font-outfit-extrabold text-xl leading-tight text-[#18151d]">
+                  Allow Camera Access?
+                </h3>
+              </div>
+            </div>
+
+            <p className="font-outfit-regular mt-4 text-xs leading-relaxed text-[#625c68]">
+              To broadcast verified on-ground milestone progress to donors holding tickets, SevaSathi needs your consent to access your device camera and location.
+            </p>
+
+            <div className="mt-4 space-y-2.5 rounded-2xl border-2 border-[#18151d] bg-[#faf6ff] p-3.5 text-xs">
+              <div className="flex items-start gap-2.5">
+                <span className="text-base">📷</span>
+                <div>
+                  <strong className="block text-[#18151d]">Live Photo Capture</strong>
+                  <span className="text-[#6e6378]">Takes field photos showing distribution of items.</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-base">📍</span>
+                <div>
+                  <strong className="block text-[#18151d]">GPS & Time Stamping</strong>
+                  <span className="text-[#6e6378]">Attaches coordinates and time so donors can verify delivery authenticity.</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-base">🔒</span>
+                <div>
+                  <strong className="block text-[#18151d]">Your Privacy Protected</strong>
+                  <span className="text-[#6e6378]">Camera is only active when you open the viewfinder. Photos are never shared outside the donor pass ledger.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleDenyConsent}
+                className="font-outfit-bold h-11 rounded-xl border-2 border-[#18151d] bg-white text-xs text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:bg-[#faf6ff]"
+              >
+                Not Now
+              </button>
+              <button
+                type="button"
+                onClick={handleGrantConsent}
+                className="font-outfit-black h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] text-xs font-bold text-[#18151d] shadow-[2px_2px_0_#18151d] transition hover:bg-[#cbf018] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+              >
+                Allow & Continue
+              </button>
             </div>
           </div>
         </div>

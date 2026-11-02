@@ -56,28 +56,33 @@ export default function DonationTracker({
   ticket?: ApiDonationTicket | null
 }) {
   const [currentTicket, setCurrentTicket] = useState<ApiDonationTicket | null>(
-    initialTicket || null
+    null
   )
   const [selectedProof, setSelectedProof] = useState<ApiDonationStage | null>(null)
   const [isAdvancing, setIsAdvancing] = useState(false)
   const [statusNotice, setStatusNotice] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
 
   useEffect(() => {
-    if (initialTicket) {
-      setCurrentTicket(initialTicket)
-      return
-    }
-
     let active = true
-    donationsApi
-      .getLatest()
-      .then((res) => {
-        if (active && res?.ticket) {
-          setCurrentTicket(res.ticket)
-        }
+    setIsLoading(true)
+    setLoadError("")
+    const request = initialTicket?.ticketId
+      ? donationsApi.getTicket(initialTicket.ticketId)
+      : donationsApi.getLatest()
+
+    request
+      .then(({ ticket }) => {
+        if (active) setCurrentTicket(ticket)
       })
-      .catch(() => {
-        // Fallback default ticket
+      .catch((error: unknown) => {
+        if (!active) return
+        setCurrentTicket(null)
+        setLoadError(error instanceof Error ? error.message : "Could not load donation tracking data.")
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
       })
 
     return () => {
@@ -94,30 +99,8 @@ export default function DonationTracker({
         setCurrentTicket(res.ticket)
         setStatusNotice("Live tracking updated with new on-ground proof!")
       }
-    } catch {
-      // Local fallback advance for offline demo
-      setCurrentTicket((prev) => {
-        if (!prev) return prev
-        const stageOrder: ("pledged" | "procured" | "prepared" | "distributed")[] = [
-          "pledged",
-          "procured",
-          "prepared",
-          "distributed",
-        ]
-        const currentIdx = stageOrder.indexOf(prev.status)
-        const nextIdx = Math.min(stageOrder.length - 1, currentIdx + 1)
-        const nextStatus = stageOrder[nextIdx]
-        const updatedStages = prev.stages.map((st, idx) => ({
-          ...st,
-          completed: idx <= nextIdx,
-        }))
-        return {
-          ...prev,
-          status: nextStatus,
-          stages: updatedStages,
-        }
-      })
-      setStatusNotice("Live stage advanced! (Offline mode)")
+    } catch (error: unknown) {
+      setStatusNotice(error instanceof Error ? error.message : "Could not update donation tracking.")
     } finally {
       setIsAdvancing(false)
       setTimeout(() => setStatusNotice(""), 3000)
@@ -128,6 +111,28 @@ export default function DonationTracker({
   const activeStageIndex = stages.findIndex((s) => !s.completed)
   const currentActiveIdx =
     activeStageIndex === -1 ? stages.length - 1 : Math.max(0, activeStageIndex - 1)
+
+  if (isLoading || loadError || !currentTicket) {
+    return (
+      <main className="donation-tracker flex min-h-dvh items-center justify-center bg-[#fffbff] p-5 text-black">
+        <section className="w-full max-w-md rounded-2xl border-2 border-[#18151d] bg-white p-6 text-center shadow-[3px_3px_0_#18151d]">
+          <h1 className="font-outfit-extrabold text-xl">
+            {isLoading ? "Loading donation tracker..." : "No donation tracking data"}
+          </h1>
+          <p className="mt-2 text-sm text-[#665e70]">
+            {loadError || "Create a donation ticket to view its live progress and proof."}
+          </p>
+          <button
+            className="mt-5 rounded-xl border-2 border-[#18151d] bg-[#18151d] px-4 py-2 text-sm font-bold text-white"
+            onClick={onBack}
+            type="button"
+          >
+            Go back
+          </button>
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main className="donation-tracker min-h-dvh bg-[#fffbff] text-black pb-16">
@@ -192,28 +197,28 @@ export default function DonationTracker({
             <img
               alt="Meals being prepared"
               className="absolute inset-0 h-full w-full object-cover"
-              src={stages[currentActiveIdx]?.photoUrl || asset("405bb.png")}
+              src={stages[currentActiveIdx]?.photoUrl || ""}
             />
             <span className="relative flex h-[19px] w-full items-center justify-center bg-[#18151d] font-outfit-bold text-[9px] text-[#d8f23c]">
-              🍲 {currentTicket?.mealCount || 5} Meals
+              🍲 {currentTicket.mealCount} Meals
             </span>
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-xs font-extrabold text-[#7e1bd9]">
-                #{currentTicket?.ticketId || "FEED-8842"}
+                #{currentTicket.ticketId}
               </span>
               <span className="h-1.5 w-1.5 rounded-full bg-[#18151d]" />
               <span className="text-[10px] font-outfit-semibold text-[#665e70]">
-                ₹{currentTicket?.amount || 250}
+                ₹{currentTicket.amount}
               </span>
             </div>
             <h2 className="font-outfit-extrabold truncate text-[14px] text-[#18151d]">
-              {currentTicket?.cause || "Children Nutrition Drive"}
+              {currentTicket.cause}
             </h2>
             <p className="font-outfit-semibold truncate text-[10.5px] text-[#6d6275]">
-              📍 {currentTicket?.location || "Kadri Hills, Mangaluru"}
+              📍 {currentTicket.location}
             </p>
           </div>
 
@@ -221,9 +226,9 @@ export default function DonationTracker({
             <div className="flex items-center gap-1 rounded-full bg-[#d8f23c] px-2 py-1 border border-[#18151d]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#208a46] animate-pulse" />
               <span className="font-outfit-bold text-[9px] uppercase text-[#18151d]">
-                {currentTicket?.status === "distributed"
+                {currentTicket.status === "distributed"
                   ? "Delivered ✓"
-                  : currentTicket?.status || "Pledged"}
+                  : currentTicket.status}
               </span>
             </div>
           </div>
@@ -393,7 +398,7 @@ export default function DonationTracker({
                     LIVE DISPATCH PROOF
                   </span>
                   <span className="font-mono text-[10px] text-white/90">
-                    {selectedProof.geoTag?.coordinates || "12.8718° N, 74.8560° E"}
+                    {selectedProof.geoTag?.coordinates}
                   </span>
                 </div>
                 <div className="font-outfit-bold mt-1 text-sm">

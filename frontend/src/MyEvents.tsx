@@ -3,6 +3,19 @@ import { EventRole, EventStatus, formatEventDate, SevaEvent } from "./events"
 import { ApiApprovedProof, ApiArticle, ApiDonationCampaign, articlesApi, donationsApi, rewardsApi } from "./api"
 import NavigationIcon from "./NavigationIcon"
 
+const categoryBadges: Record<
+  string,
+  { icon: string; bg: string; text: string; border: string }
+> = {
+  Clothes: { icon: "👕", bg: "bg-[#e8f1ff]", text: "text-[#1d57b8]", border: "border-[#1d57b8]" },
+  Education: { icon: "📚", bg: "bg-[#fef3c7]", text: "text-[#b45309]", border: "border-[#b45309]" },
+  Food: { icon: "🍲", bg: "bg-[#efffdc]", text: "text-[#22833e]", border: "border-[#22833e]" },
+  Medical: { icon: "🩺", bg: "bg-[#ffe4e6]", text: "text-[#be123c]", border: "border-[#be123c]" },
+  "Animal Care": { icon: "🐾", bg: "bg-[#f5e8fc]", text: "text-[#7e1bd9]", border: "border-[#7e1bd9]" },
+  Hygiene: { icon: "💧", bg: "bg-[#e0f2fe]", text: "text-[#0369a1]", border: "border-[#0369a1]" },
+  "Emergency Relief": { icon: "🚨", bg: "bg-[#fee2e2]", text: "text-[#b91c1c]", border: "border-[#b91c1c]" },
+}
+
 type Destination = "home" | "tasks" | "my-events" | "memories" | "profile"
 
 function Glyph({
@@ -341,16 +354,20 @@ export default function MyEvents({
   events,
   onCreate,
   onManage,
+  onManageCampaign,
   onNavigate,
   onProof,
   onTasks,
+  profile,
 }: {
   events: SevaEvent[]
   onCreate: () => void
   onManage: (event: SevaEvent) => void
+  onManageCampaign?: (campaign: ApiDonationCampaign) => void
   onNavigate: (destination: Destination) => void
   onProof: () => void
   onTasks: (event: SevaEvent) => void
+  profile?: { id?: string; name?: string }
 }) {
   const [role, setRole] = useState<EventRole>("attending")
   const [detailEvent, setDetailEvent] = useState<SevaEvent | null>(null)
@@ -358,13 +375,28 @@ export default function MyEvents({
   const [articles, setArticles] = useState<ApiArticle[]>([])
   const [selectedArticle, setSelectedArticle] = useState<ApiArticle | null>(null)
   const [articleProofs, setArticleProofs] = useState<ApiApprovedProof[]>([])
+  const [campaigns, setCampaigns] = useState<ApiDonationCampaign[]>([])
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
 
   const roleEvents = events.filter((event) => event.role === role)
   const visibleEvents = roleEvents
 
+  const userCampaigns = campaigns.filter((c) => {
+    if (!profile?.name) return true
+    const matchName = c.organizer?.trim().toLowerCase() === profile.name.trim().toLowerCase()
+    const matchId = profile.id && c.organizerId === profile.id
+    return matchName || matchId
+  })
+  const visibleCampaigns = userCampaigns.length > 0 ? userCampaigns : campaigns
+
   useEffect(() => {
     if (role !== "organizing") return
     articlesApi.listMine().then(({ articles: next }) => setArticles(next)).catch(() => setArticles([]))
+    setLoadingCampaigns(true)
+    donationsApi.listCampaigns()
+      .then(({ campaigns: next }) => setCampaigns(next))
+      .catch(() => setCampaigns([]))
+      .finally(() => setLoadingCampaigns(false))
   }, [role])
 
   useEffect(() => {
@@ -425,9 +457,10 @@ export default function MyEvents({
         >
           {(["attending", "organizing"] as EventRole[]).map((tabRole) => {
             const active = role === tabRole
-            const count = events.filter(
+            const eventCount = events.filter(
               (event) => event.role === tabRole,
             ).length
+            const count = tabRole === "organizing" ? eventCount + visibleCampaigns.length : eventCount
             return (
               <button
                 aria-selected={active}
@@ -454,10 +487,157 @@ export default function MyEvents({
           })}
         </div>
 
-        <div className="mt-5 flex items-center justify-between">
-          <h2 className="font-outfit-extrabold text-2xl">
-            {role === "attending" ? "Events you joined" : "Events you organize"}
-          </h2>
+        {/* --- ORGANIZING: DONATION CAMPAIGNS SECTION --- */}
+        {role === "organizing" && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-outfit-extrabold text-2xl text-[#18151d]">
+                  Donation Campaigns
+                </h2>
+                <p className="font-outfit-regular text-xs text-[#756c7b]">
+                  Initiatives you host with live transparent stage tracking
+                </p>
+              </div>
+              <span className="font-outfit-semibold text-sm text-[#756c7b]">
+                {visibleCampaigns.length}{" "}
+                {visibleCampaigns.length === 1 ? "campaign" : "campaigns"}
+              </span>
+            </div>
+
+            {loadingCampaigns ? (
+              <div className="mt-4 rounded-2xl border-2 border-dashed border-[#b8a9c2] bg-white p-6 text-center text-sm text-[#756c7b]">
+                Loading campaigns...
+              </div>
+            ) : visibleCampaigns.length > 0 ? (
+              <div className="mt-4 grid gap-6 md:grid-cols-2">
+                {visibleCampaigns.map((campaign) => {
+                  const badge = categoryBadges[campaign.category] || categoryBadges.Clothes
+                  const percent = Math.min(
+                    100,
+                    Math.round(
+                      ((campaign.raisedUnits || 0) /
+                        (campaign.targetUnits || 1)) *
+                        100,
+                    ),
+                  )
+                  return (
+                    <article
+                      className="overflow-hidden rounded-[20px] border-2 border-[#18151d] bg-white shadow-[4px_5px_0_#18151d] transition hover:-translate-y-1"
+                      key={campaign.id || campaign.campaignId}
+                    >
+                      <div className="relative h-44 w-full bg-[#eee6f4]">
+                        <img
+                          alt={campaign.title}
+                          className="h-full w-full object-cover"
+                          src={campaign.image || "/assets/6d276.png"}
+                        />
+                        <div className="absolute left-3 top-3 flex gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border ${badge.border} ${badge.bg} px-2.5 py-1 text-xs font-bold ${badge.text} shadow-xs`}
+                          >
+                            <span>{badge.icon}</span>
+                            <span>{campaign.category}</span>
+                          </span>
+                        </div>
+                        <div className="absolute right-3 top-3">
+                          <span className="rounded-full border border-[#18151d] bg-white/95 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#8c23df] shadow-xs">
+                            {campaign.currentStage || "Pledged"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-5">
+                        <div className="flex items-center justify-between text-xs text-[#756c7b]">
+                          <span>📍 {campaign.location}</span>
+                          <span className="font-outfit-bold text-[#8c23df]">
+                            ID: {campaign.campaignId}
+                          </span>
+                        </div>
+
+                        <h3 className="font-outfit-extrabold mt-1.5 text-xl leading-tight text-[#18151d]">
+                          {campaign.title}
+                        </h3>
+                        <p className="font-outfit-regular mt-1 line-clamp-2 text-xs leading-relaxed text-[#6d6572]">
+                          {campaign.description}
+                        </p>
+
+                        {/* Progress Stats */}
+                        <div className="mt-4 rounded-xl border border-[#e6dcfa] bg-[#faf6ff] p-3">
+                          <div className="flex justify-between text-xs font-bold text-[#18151d]">
+                            <span>
+                              {campaign.raisedUnits} / {campaign.targetUnits}{" "}
+                              {campaign.donationItem}s
+                            </span>
+                            <span className="text-[#8c23df]">{percent}%</span>
+                          </div>
+                          <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full border border-[#18151d] bg-white">
+                            <div
+                              className="h-full bg-[#8c23df] transition-all duration-300"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                          <div className="mt-2 flex justify-between text-[11px] text-[#756c7b]">
+                            <span>
+                              Raised: ₹{(campaign.raisedAmount || 0).toLocaleString()}
+                            </span>
+                            <span>
+                              Target: ₹{(campaign.targetAmount || 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <div className="flex items-center text-xs font-semibold text-[#6d6572]">
+                            <span>👥 {campaign.donors?.length || 0} Supporters</span>
+                          </div>
+                          <button
+                            className="font-outfit-bold flex h-10 items-center justify-center rounded-xl border-2 border-[#18151d] bg-[#d8f23c] text-xs font-bold shadow-[2px_2px_0_#18151d] transition hover:bg-[#cbf018]"
+                            onClick={() =>
+                              onManageCampaign
+                                ? onManageCampaign(campaign)
+                                : onNavigate("my-events")
+                            }
+                            type="button"
+                          >
+                            Manage Campaign →
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#b8a9c2] bg-white p-6 text-center">
+                <p className="font-outfit-regular text-sm text-[#756c7b]">
+                  You have not created any donation campaigns yet.
+                </p>
+                <button
+                  className="font-outfit-bold mt-3 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-4 py-2 text-xs shadow-[2px_2px_0_#18151d]"
+                  onClick={onCreate}
+                  type="button"
+                >
+                  Create Donation Campaign
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* --- VOLUNTEER EVENTS SECTION --- */}
+        <div className="mt-8 flex items-center justify-between">
+          <div>
+            <h2 className="font-outfit-extrabold text-2xl text-[#18151d]">
+              {role === "attending" ? "Events you joined" : "Volunteer Events"}
+            </h2>
+            {role === "organizing" && (
+              <p className="font-outfit-regular text-xs text-[#756c7b]">
+                Community drives and on-ground volunteer meetups
+              </p>
+            )}
+          </div>
           <span className="font-outfit-semibold text-sm text-[#756c7b]">
             {visibleEvents.length}{" "}
             {visibleEvents.length === 1 ? "event" : "events"}
@@ -478,20 +658,20 @@ export default function MyEvents({
             ))}
           </div>
         ) : (
-          <div className="mt-5 flex min-h-[300px] flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-[#b8a9c2] bg-white px-6 text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#eee1ff] text-[#8c23df]">
-              <Glyph className="h-8 w-8" name="calendar" />
+          <div className="mt-5 flex min-h-[220px] flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-[#b8a9c2] bg-white px-6 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#eee1ff] text-[#8c23df]">
+              <Glyph className="h-7 w-7" name="calendar" />
             </span>
-            <h3 className="font-outfit-extrabold mt-4 text-2xl">
-              Nothing here yet
+            <h3 className="font-outfit-extrabold mt-3 text-xl">
+              {role === "attending" ? "No joined events" : "No volunteer events organized yet"}
             </h3>
-            <p className="font-outfit-regular mt-2 max-w-[400px] text-[#6d6572]">
+            <p className="font-outfit-regular mt-1 max-w-[400px] text-xs text-[#6d6572]">
               {role === "attending"
                 ? "Explore volunteer tasks to find your next opportunity."
                 : "Create an event and bring your community together."}
             </p>
             <button
-              className="font-outfit-bold mt-5 h-11 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-5"
+              className="font-outfit-bold mt-4 h-10 rounded-xl border-2 border-[#18151d] bg-[#d8f23c] px-5 text-xs shadow-[2px_2px_0_#18151d]"
               onClick={
                 role === "attending" ? () => onNavigate("tasks") : onCreate
               }

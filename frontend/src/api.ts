@@ -555,6 +555,8 @@ export const donationsApi = {
     request<{ ticket: ApiDonationTicket }>("/donations/latest", {
       auth: false,
     }),
+  listMine: () =>
+    request<{ tickets: ApiDonationTicket[] }>("/donations/mine"),
   listCampaigns: () =>
     request<{ campaigns: ApiDonationCampaign[] }>("/donations/campaigns", {
       auth: false,
